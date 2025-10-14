@@ -1,0 +1,104 @@
+"""Database ORM models"""
+from sqlalchemy import Column, String, Text, DateTime, Integer, JSON, Enum as SQLEnum, Numeric
+from sqlalchemy.sql import func
+from datetime import datetime
+import enum
+from app.database import Base
+
+
+class ReportStatus(str, enum.Enum):
+    """Report/Task status"""
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class VariableSourceType(str, enum.Enum):
+    """Variable source types"""
+    USER_INPUT = "user_input"
+    SQL = "sql"
+    API = "api"
+    AI_GENERATION = "ai_generation"
+    SYSTEM = "system"
+
+
+class VariableStatusType(str, enum.Enum):
+    """Variable execution status"""
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class Template(Base):
+    """Template model"""
+    __tablename__ = "templates"
+    
+    id = Column(String(50), primary_key=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text)
+    template_content = Column(Text, nullable=False)
+    metadata_json = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class GenerationTask(Base):
+    """Report generation task"""
+    __tablename__ = "generation_tasks"
+    
+    id = Column(String(50), primary_key=True)
+    template_id = Column(String(50), nullable=False)
+    status = Column(SQLEnum(ReportStatus), nullable=False, default=ReportStatus.PENDING)
+    inputs_json = Column(JSON, nullable=False)
+    started_at = Column(DateTime(timezone=True))
+    finished_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class GenerationTaskVariable(Base):
+    """Variable execution details for a task"""
+    __tablename__ = "generation_task_variables"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(String(50), nullable=False, index=True)
+    variable_name = Column(String(100), nullable=False)
+    source = Column(SQLEnum(VariableSourceType), nullable=False)
+    status = Column(SQLEnum(VariableStatusType), nullable=False, default=VariableStatusType.PENDING)
+    started_at = Column(DateTime(timezone=True))
+    finished_at = Column(DateTime(timezone=True))
+    duration_ms = Column(Integer)
+    error_code = Column(String(50))
+    error_message = Column(Text)
+    result_preview = Column(JSON)
+
+
+class Report(Base):
+    """Generated report"""
+    __tablename__ = "reports"
+    
+    id = Column(String(50), primary_key=True)
+    template_id = Column(String(50), nullable=False)
+    task_id = Column(String(50), unique=True)
+    title = Column(String(200))
+    status = Column(SQLEnum(ReportStatus), nullable=False)
+    markdown_content = Column(Text, nullable=False)
+    cost_usd = Column(Numeric(10, 4))
+    duration_ms = Column(Integer)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class AIProviderKey(Base):
+    """AI provider API keys"""
+    __tablename__ = "ai_provider_keys"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider = Column(String(50), nullable=False)
+    api_key_ciphertext = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+

@@ -1,12 +1,12 @@
-# Markdown 报告自动生成平台 - 后端服务 (P0 核心组件)
+# Markdown 报告自动生成平台 - 后端服务
 
 ## 项目概述
 
-本项目实现了基于 Jinja2 模板和多源数据注入的 Markdown 报告自动生成系统的后端核心服务组件（P0优先级）。
+本项目实现了基于 Jinja2 模板和多源数据注入的 Markdown 报告自动生成系统的**完整后端系统**，包括核心服务组件和REST API接口（P0阶段）。
 
 ## 核心功能
 
-### ✅ 已实现的 P0 组件
+### ✅ P0 核心组件（已完成）
 
 1. **执行上下文管理 (ExecutionContext)**
    - 变量存储与获取
@@ -36,6 +36,27 @@
    - 依赖分析与拓扑排序
    - 批次并行执行
    - 进度回调支持
+
+### ✅ P0 REST API（已完成）
+
+6. **模板管理 API**
+   - 模板CRUD（创建、读取、更新、删除）
+   - 模板列表（分页、搜索）
+   - Jinja2语法验证
+
+7. **报告生成 API**
+   - 异步报告生成
+   - 报告详情查询
+   - Markdown文件下载
+
+8. **系统配置 API**
+   - AI配置管理（OpenAI API Key）
+   - 配置状态查询
+
+9. **数据库层**
+   - SQLAlchemy ORM模型
+   - 5个核心数据表
+   - SQLite/PostgreSQL支持
 
 ## 项目结构
 
@@ -79,14 +100,25 @@ cd backend
 pip install -r requirements.txt
 ```
 
-### 2. 运行测试
+### 2. 启动API服务器
 
 ```bash
-# 运行所有测试
+# 开发模式（自动重载）
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 访问 API 文档
+# http://localhost:8000/docs (Swagger UI)
+# http://localhost:8000/redoc (ReDoc)
+```
+
+### 3. 运行测试
+
+```bash
+# 运行所有测试（核心组件 + API）
 pytest tests/ -v
 
-# 运行特定测试
-pytest tests/test_context.py -v
+# 只运行API测试
+pytest tests/test_api_*.py -v
 
 # 运行集成测试并查看输出
 pytest tests/test_integration.py -v -s
@@ -94,30 +126,25 @@ pytest tests/test_integration.py -v -s
 
 ### 3. 测试结果
 
-✅ **21个测试全部通过**
+✅ **40个测试全部通过**
 
-```
-tests/test_context.py::test_context_creation PASSED
-tests/test_context.py::test_set_and_get_variable PASSED
-tests/test_context.py::test_interpolate_string PASSED
-tests/test_context.py::test_interpolate_dict PASSED
-tests/test_context.py::test_dependencies PASSED
-tests/test_executors.py::test_user_input_executor PASSED
-tests/test_executors.py::test_user_input_with_default PASSED
-tests/test_executors.py::test_system_executor_datetime PASSED
-tests/test_executors.py::test_system_executor_uuid PASSED
-tests/test_executors.py::test_system_executor_constant PASSED
-tests/test_integration.py::test_complete_report_generation PASSED
-tests/test_integration.py::test_dependency_resolution PASSED
-tests/test_renderer.py::test_simple_rendering PASSED
-tests/test_renderer.py::test_conditional_rendering PASSED
-tests/test_renderer.py::test_loop_rendering PASSED
-tests/test_renderer.py::test_json_filter PASSED
-tests/test_renderer.py::test_template_validation PASSED
-tests/test_scheduler.py::test_build_dag_simple PASSED
-tests/test_scheduler.py::test_build_dag_circular_dependency PASSED
-tests/test_scheduler.py::test_get_execution_batches PASSED
-tests/test_scheduler.py::test_execute_all PASSED
+**核心组件测试 (21个)**:
+- ✅ test_context.py (5个)
+- ✅ test_executors.py (5个)
+- ✅ test_renderer.py (5个)
+- ✅ test_scheduler.py (4个)
+- ✅ test_integration.py (2个)
+
+**API测试 (19个)**:
+- ✅ test_api_templates.py (10个)
+- ✅ test_api_reports.py (4个)
+- ✅ test_api_config.py (3个)
+- ✅ test_api_integration.py (2个)
+
+```bash
+$ pytest tests/ -q
+........................................                    [100%]
+40 passed, 36 warnings in 7.81s
 ```
 
 ## 使用示例
@@ -263,14 +290,69 @@ prompt: "基于以下信息生成分析：{{project_info}}"
 - ✅ 调度器（4个测试）
 - ✅ 集成测试（2个测试）
 
+## 数据库配置
+
+### 开发环境
+
+默认使用SQLite（`reports.db`），无需配置。
+
+### 测试环境
+
+**测试使用MySQL数据库**:
+- 主机: 10.10.20.10:24406
+- 数据库: test_report_generator
+- 详见: [测试数据库配置说明.md](./测试数据库配置说明.md)
+
+### 生产环境
+
+设置环境变量使用PostgreSQL或MySQL：
+
+```bash
+# PostgreSQL
+export DATABASE_URL="postgresql://user:password@host:port/dbname"
+
+# MySQL
+export DATABASE_URL="mysql+pymysql://user:password@host:port/dbname"
+```
+
 ## 注意事项
 
 1. **AI功能需要API Key**: 设置环境变量 `OPENAI_API_KEY`
 2. **SQL功能需要数据库**: 使用 `db_connector.register_connection()` 注册连接
 3. **Schema警告**: Pydantic的 `schema` 字段名与父类冲突，但不影响功能
 4. **Python版本**: 推荐使用 Python 3.11 或 3.12
+5. **测试数据库**: 使用MySQL远程数据库，确保网络可达
+
+## API 使用
+
+详细API文档请参考: [API_使用文档.md](./API_使用文档.md)
+
+### 快速示例
+
+```bash
+# 1. 创建模板
+curl -X POST http://localhost:8000/api/templates \
+  -H "Content-Type: application/json" \
+  -d '{"name": "简单报告", "template_content": "# {{title}}", "metadata": {...}}'
+
+# 2. 生成报告
+curl -X POST http://localhost:8000/api/reports/generate \
+  -H "Content-Type: application/json" \
+  -d '{"template_id": "tpl_xxx", "inputs": {"title": "我的报告"}}'
+
+# 3. 下载报告
+curl http://localhost:8000/api/reports/{report_id}/download -o report.md
+```
+
+## 项目文档
+
+- 📄 [README.md](./README.md) - 本文档
+- 📄 [API_使用文档.md](./API_使用文档.md) - API接口文档
+- 📄 [P0_实现总结.md](./P0_实现总结.md) - 核心组件实现总结
+- 📄 [P0_API实现总结.md](./P0_API实现总结.md) - API实现总结
+- 📄 [模块说明.md](../模块说明.md) - 系统架构设计
 
 ## 贡献与反馈
 
-本项目为MVP阶段的P0核心组件实现。如有问题或建议，请参考《模块说明.md》中的架构设计。
+本项目为MVP阶段的P0完整实现（核心组件 + REST API）。如有问题或建议，请参考《模块说明.md》中的架构设计。
 
