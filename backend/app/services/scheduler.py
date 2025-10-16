@@ -22,8 +22,9 @@ class ExecutionScheduler:
     Executes variables in topological order with parallelization
     """
     
-    def __init__(self, openai_api_key: Optional[str] = None):
+    def __init__(self, openai_api_key: Optional[str] = None, openai_api_base: Optional[str] = None):
         self.openai_api_key = openai_api_key
+        self.openai_api_base = openai_api_base
         
     def build_dag(self, metadata: Dict[str, VariableMetadata]) -> nx.DiGraph:
         """
@@ -85,7 +86,8 @@ class ExecutionScheduler:
             return ApiExecutor(var_name, metadata, context)
         elif source == VariableSource.AI_GENERATION:
             return AiExecutor(var_name, metadata, context, 
-                            openai_api_key=self.openai_api_key)
+                            openai_api_key=self.openai_api_key,
+                            openai_api_base=self.openai_api_base)
         else:
             raise ValueError(f"Unknown variable source: {source}")
             

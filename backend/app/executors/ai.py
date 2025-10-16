@@ -1,6 +1,7 @@
 """AI generation executor - P0 with LangChain integration"""
 from typing import Any, Dict
 import json
+import re
 from app.executors.base import BaseVariableExecutor
 from app.core.exceptions import AiGenerationError
 
@@ -16,9 +17,10 @@ class AiExecutor(BaseVariableExecutor):
     Uses LangChain for structured output
     """
     
-    def __init__(self, *args, openai_api_key: str = None, **kwargs):
+    def __init__(self, *args, openai_api_key: str = None, openai_api_base: str = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.openai_api_key = openai_api_key
+        self.openai_api_base = openai_api_base
         
     async def _execute_impl(self) -> Any:
         """
@@ -51,40 +53,71 @@ class AiExecutor(BaseVariableExecutor):
         # Build LangChain components
         try:
             # 1. Create LLM
-            llm = ChatOpenAI(
-                model=config.model,
-                temperature=config.temperature or 0.7,
-                max_tokens=config.max_tokens or 2000,
-                api_key=self.openai_api_key
-            )
+            llm_kwargs = {
+                "model": config.model,
+                "temperature": config.temperature or 0.7,
+                "max_tokens": config.max_tokens or 2000,
+                "api_key": self.openai_api_key
+            }
             
-            # 2. Create output parser
+            # 添加自定义API base（如硅基流动）
+            if self.openai_api_base:
+                llm_kwargs["base_url"] = self.openai_api_base
+            
+            llm = ChatOpenAI(**llm_kwargs)
+            
+            # 2. Create output parser with custom preprocessing
             parser = JsonOutputParser()
             
             # 3. Add schema instructions to prompt if schema is provided
             if self.metadata.schema:
-                schema_str = json.dumps(self.metadata.schema, indent=2, ensure_ascii=False)
+                # 生成简化的schema描述，避免JSON格式被Jinja2解析
+                schema_desc = self._generate_schema_description(self.metadata.schema)
                 full_prompt = f"""{prompt_text}
 
-请以JSON格式返回结果，遵循以下schema：
-{schema_str}
+请以JSON格式返回结果，{schema_desc}
+
+重要提示：
+1. 必须返回完整的JSON，不能中断
+2. 确保每个字段后面有逗号（最后一个字段除外）
+3. 确保所有字符串都用双引号包裹
+4. 不要使用markdown代码块
 
 只返回JSON，不要包含其他文字说明。"""
             else:
                 full_prompt = f"""{prompt_text}
 
-请以JSON格式返回结果。"""
+请以JSON格式返回结果。确保JSON格式完全正确，每个字段后都有逗号（最后一个除外）。"""
             
             # 4. Create prompt template
-            prompt = ChatPromptTemplate.from_template(full_prompt)
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", "你是一个专业的数据分析助手，擅长生成结构化的JSON数据。请直接返回纯JSON格式，不要使用markdown代码块（不要使用```json```），不要添加任何解释性文字。"),
+                ("human", full_prompt)
+            ])
             
-            # 5. Create chain: prompt | llm | parser
-            chain = prompt | llm | parser
+            # 5. Create chain: prompt | llm
+            chain = prompt | llm
             
-            # 6. Invoke chain
-            result = await chain.ainvoke({})
+            # 6. Invoke chain and get raw output
+            raw_output = await chain.ainvoke({})
             
-            # 7. Validate against schema if provided
+            # 7. Extract content from response
+            if hasattr(raw_output, 'content'):
+                content = raw_output.content
+            else:
+                content = str(raw_output)
+            
+            # Debug: Check if content is empty
+            if not content or not content.strip():
+                raise AiGenerationError(
+                    self.variable_name,
+                    f"AI returned empty response. Raw output type: {type(raw_output)}, Raw output: {raw_output}"
+                )
+            
+            # 8. Clean and parse JSON output
+            result = self._parse_ai_output(content)
+            
+            # 8. Validate against schema if provided
             if self.metadata.schema:
                 self._validate_schema(result, self.metadata.schema)
             
@@ -96,6 +129,101 @@ class AiExecutor(BaseVariableExecutor):
                 f"AI generation failed: {str(e)}",
                 e
             )
+    
+    def _parse_ai_output(self, raw_output: str) -> Any:
+        """
+        解析AI输出，处理常见的格式问题
+        """
+        # 1. 去除Markdown代码块标记
+        cleaned = raw_output.strip()
+        
+        # 匹配 ```json ... ``` 或 ``` ... ```
+        code_block_pattern = r'```(?:json)?\s*\n?(.*?)\n?```'
+        match = re.search(code_block_pattern, cleaned, re.DOTALL)
+        if match:
+            cleaned = match.group(1).strip()
+        
+        # 2. 尝试解析JSON
+        try:
+            result = json.loads(cleaned)
+            return result
+        except json.JSONDecodeError as e:
+            # 3. 如果失败，尝试修复常见错误
+            fixed = cleaned
+            
+            # 修复1: 对象之间缺少逗号 }\n  {
+            fixed = re.sub(r'\}\s*\n\s*\{', '},\n  {', fixed)
+            
+            # 修复2: 数组元素之间缺少逗号 ]\n  [
+            fixed = re.sub(r'\]\s*\n\s*\[', '],\n  [', fixed)
+            
+            # 修复3: 字符串值结束后缺少逗号
+            # 匹配: "value"\n  "nextfield": 应该是 "value",\n  "nextfield":
+            fixed = re.sub(r'"\s*\n\s+"([^"]+)"\s*:', r'",\n    "\1":', fixed)
+            
+            # 修复4: 数字/布尔值后缺少逗号
+            # 匹配: 123\n  "nextfield": 应该是 123,\n  "nextfield":
+            fixed = re.sub(r'(\d+|\btrue\b|\bfalse\b|\bnull\b)\s*\n\s+"([^"]+)"\s*:', r'\1,\n    "\2":', fixed)
+            
+            try:
+                result = json.loads(fixed)
+                return result
+            except json.JSONDecodeError as parse_error:
+                # 如果还是失败，抛出更详细的错误
+                raise AiGenerationError(
+                    self.variable_name,
+                    f"Invalid JSON format. Original output (first 1000 chars):\n{raw_output[:1000]}\n\nParse error: {str(parse_error)}"
+                )
+    
+    def _generate_schema_description(self, schema: Dict[str, Any]) -> str:
+        """
+        生成schema的文字描述，避免JSON格式问题
+        """
+        schema_type = schema.get("type", "object")
+        
+        if schema_type == "array":
+            if "items" in schema:
+                item_schema = schema["items"]
+                if item_schema.get("type") == "object" and "properties" in item_schema:
+                    props = item_schema["properties"]
+                    required_fields = item_schema.get("required", [])
+                    
+                    fields_desc = []
+                    for field_name, field_info in props.items():
+                        field_type = field_info.get("type", "string")
+                        is_required = "必需" if field_name in required_fields else "可选"
+                        fields_desc.append(f"{field_name}({field_type}, {is_required})")
+                    
+                    return f"返回数组，每个元素是对象，包含字段: {', '.join(fields_desc)}"
+                else:
+                    item_type = item_schema.get("type", "any")
+                    return f"返回{item_type}类型的数组"
+            return "返回数组"
+        
+        elif schema_type == "object":
+            if "properties" in schema:
+                props = schema["properties"]
+                required_fields = schema.get("required", [])
+                
+                fields_desc = []
+                for field_name, field_info in props.items():
+                    field_type = field_info.get("type", "string")
+                    is_required = "必需" if field_name in required_fields else "可选"
+                    
+                    # 处理嵌套对象
+                    if field_type == "object" and "properties" in field_info:
+                        nested_props = field_info["properties"]
+                        nested_fields = [f"{k}({v.get('type', 'string')})" for k, v in nested_props.items()]
+                        fields_desc.append(f"{field_name}(对象包含: {', '.join(nested_fields)}, {is_required})")
+                    elif field_type == "array":
+                        fields_desc.append(f"{field_name}(数组, {is_required})")
+                    else:
+                        fields_desc.append(f"{field_name}({field_type}, {is_required})")
+                
+                return f"返回对象，包含字段: {', '.join(fields_desc)}"
+            return "返回对象"
+        
+        return f"返回{schema_type}类型"
     
     def _validate_schema(self, data: Any, schema: Dict[str, Any]):
         """

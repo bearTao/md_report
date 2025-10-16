@@ -22,12 +22,22 @@ class VariableStatus(str, Enum):
     SKIPPED = "skipped"
 
 
+class SqlResultMode(str, Enum):
+    """SQL result return mode"""
+    FIRST_ROW = "first_row"        # 返回第一行作为对象 {col1: val1, col2: val2}
+    ALL_ROWS = "all_rows"          # 返回所有行作为数组 [{row1}, {row2}, ...]
+    FIRST_VALUE = "first_value"    # 返回第一行第一列的值（标量）
+    FIRST_COLUMN = "first_column"  # 返回第一列的所有值 [val1, val2, ...]
+    AUTO = "auto"                  # 根据type自动判断（默认）
+
+
 class SqlConfig(BaseModel):
     """SQL variable configuration"""
     connection: str
     query: str
     parameters: Optional[List[str]] = []
     timeout: Optional[int] = 10
+    result_mode: Optional[SqlResultMode] = SqlResultMode.AUTO  # 结果返回模式
 
 
 class ApiConfig(BaseModel):
