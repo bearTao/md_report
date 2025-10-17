@@ -99,6 +99,7 @@ class AIProviderKey(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     provider = Column(String(50), nullable=False)
     api_key_ciphertext = Column(Text, nullable=False)
+    api_base = Column(String(500), nullable=True)  # API base URL (e.g., for proxies)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

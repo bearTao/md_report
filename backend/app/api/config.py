@@ -16,10 +16,12 @@ async def get_ai_config(db: Session = Depends(get_db)):
     """Get AI configuration status"""
     # Check environment variable first
     env_key = os.getenv("OPENAI_API_KEY")
+    env_base = os.getenv("OPENAI_API_BASE")
     if env_key:
         return AIConfigResponse(
             configured=True,
-            provider="openai"
+            provider="openai",
+            api_base=env_base
         )
     
     # Check database
@@ -30,12 +32,14 @@ async def get_ai_config(db: Session = Depends(get_db)):
     if config:
         return AIConfigResponse(
             configured=True,
-            provider="openai"
+            provider="openai",
+            api_base=config.api_base
         )
     
     return AIConfigResponse(
         configured=False,
-        provider=None
+        provider=None,
+        api_base=None
     )
 
 
@@ -53,17 +57,20 @@ async def update_ai_config(
     
     if existing:
         existing.api_key_ciphertext = config_data.api_key
+        existing.api_base = config_data.api_base
         db.commit()
     else:
         new_config = AIProviderKey(
             provider=config_data.provider,
-            api_key_ciphertext=config_data.api_key
+            api_key_ciphertext=config_data.api_key,
+            api_base=config_data.api_base
         )
         db.add(new_config)
         db.commit()
     
     return AIConfigResponse(
         configured=True,
-        provider=config_data.provider
+        provider=config_data.provider,
+        api_base=config_data.api_base
     )
 

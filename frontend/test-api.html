@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API测试</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>API连接测试</h1>
+    <div id="result"></div>
+    
+    <script>
+        const resultDiv = document.getElementById('result');
+        
+        async function testAPI() {
+            const apiBaseURL = 'http://localhost:8000';
+            
+            try {
+                resultDiv.innerHTML += '<p>🔄 测试后端连接...</p>';
+                
+                // 测试1: 健康检查
+                const healthResp = await fetch(`${apiBaseURL}/health`);
+                const healthData = await healthResp.json();
+                resultDiv.innerHTML += `<p>✅ 健康检查: ${JSON.stringify(healthData)}</p>`;
+                
+                // 测试2: 获取模板列表
+                const templatesResp = await fetch(`${apiBaseURL}/api/templates`);
+                const templatesData = await templatesResp.json();
+                resultDiv.innerHTML += `<p>✅ 模板列表: 共${templatesData.total}个模板</p>`;
+                
+                if (templatesData.items.length > 0) {
+                    const templateId = templatesData.items[0].id;
+                    resultDiv.innerHTML += `<p>📝 第一个模板ID: ${templateId}</p>`;
+                    
+                    // 测试3: 获取模板详情
+                    const templateResp = await fetch(`${apiBaseURL}/api/templates/${templateId}`);
+                    const templateData = await templateResp.json();
+                    resultDiv.innerHTML += `<p>✅ 模板详情: ${templateData.name}</p>`;
+                    resultDiv.innerHTML += `<p>📄 模板内容长度: ${templateData.template_content.length} 字符</p>`;
+                    resultDiv.innerHTML += `<p>📋 元数据: ${JSON.stringify(templateData.metadata_json).substring(0, 100)}...</p>`;
+                    
+                    // 在浏览器中测试编辑页面链接
+                    resultDiv.innerHTML += `<p><a href="http://localhost:5174/templates/${templateId}/edit" target="_blank">🔗 点击测试编辑页面</a></p>`;
+                }
+                
+                resultDiv.innerHTML += '<hr><p>🎉 所有API测试通过！</p>';
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<p style="color: red;">❌ 错误: ${error.message}</p>`;
+                console.error('API测试失败:', error);
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>
+

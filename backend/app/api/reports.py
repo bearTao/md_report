@@ -13,7 +13,8 @@ from app.models.db_models import (
 )
 from app.schemas.api_schemas import (
     ReportGenerateRequest, ReportGenerateResponse,
-    ReportResponse, ReportStatusEnum
+    ReportResponse, ReportStatusEnum,
+    TaskStatusResponse, TaskVariableDetail, VariableStatusEnum
 )
 from app.services.scheduler import ExecutionScheduler
 from app.services.context import ExecutionContext
@@ -24,16 +25,21 @@ from app.core.models import VariableMetadata, VariableStatus
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 
-def get_ai_api_key(db: Session) -> Optional[str]:
-    """Get OpenAI API key from config (simplified for P0)"""
+def get_ai_config(db: Session) -> tuple[Optional[str], Optional[str]]:
+    """
+    Get OpenAI API config from environment or database
+    
+    Returns:
+        tuple: (api_key, api_base)
+    """
     from app.models.db_models import AIProviderKey
-    from cryptography.fernet import Fernet
     import os
     
-    # For P0, try environment variable first
+    # Try environment variable first
     api_key = os.getenv("OPENAI_API_KEY")
+    api_base = os.getenv("OPENAI_API_BASE")
     if api_key:
-        return api_key
+        return api_key, api_base
     
     # Try database
     config = db.query(AIProviderKey).filter(
@@ -41,14 +47,13 @@ def get_ai_api_key(db: Session) -> Optional[str]:
     ).first()
     
     if config:
-        # Decrypt API key (simplified - in production use proper KMS)
+        # For P0, assume plaintext storage in dev
         try:
-            # For P0, assume plaintext storage in dev
-            return config.api_key_ciphertext
+            return config.api_key_ciphertext, config.api_base
         except:
-            return None
+            return None, None
     
-    return None
+    return None, None
 
 
 async def execute_report_generation(
@@ -58,7 +63,8 @@ async def execute_report_generation(
     metadata: Dict[str, Any],
     user_inputs: Dict[str, Any],
     db_session: Session,
-    openai_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None,
+    openai_api_base: Optional[str] = None
 ):
     """Background task to execute report generation"""
     
@@ -84,7 +90,10 @@ async def execute_report_generation(
         )
         
         # Create scheduler
-        scheduler = ExecutionScheduler(openai_api_key=openai_api_key)
+        scheduler = ExecutionScheduler(
+            openai_api_key=openai_api_key,
+            openai_api_base=openai_api_base
+        )
         
         # Progress callback to save variable execution details
         async def progress_callback(var_name: str, status: VariableStatus, result):
@@ -198,8 +207,8 @@ async def generate_report(
     db.add(task)
     db.commit()
     
-    # Get AI API key
-    openai_api_key = get_ai_api_key(db)
+    # Get AI config (api_key and api_base)
+    openai_api_key, openai_api_base = get_ai_config(db)
     
     # Start background task
     background_tasks.add_task(
@@ -210,7 +219,8 @@ async def generate_report(
         metadata=template.metadata_json,
         user_inputs=request.inputs,
         db_session=db,
-        openai_api_key=openai_api_key
+        openai_api_key=openai_api_key,
+        openai_api_base=openai_api_base
     )
     
     return ReportGenerateResponse(
@@ -255,15 +265,68 @@ async def download_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     
-    # Generate filename
+    # Generate filename - use URL encoding for unicode characters
+    from urllib.parse import quote
     filename = f"{report.title or report.id}.md"
-    filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.'))
+    # Keep only safe characters
+    safe_filename = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in filename)
+    if not safe_filename.endswith('.md'):
+        safe_filename += '.md'
+    
+    # Use UTF-8 encoding for the filename
+    encoded_filename = quote(safe_filename)
     
     return Response(
-        content=report.markdown_content,
-        media_type="text/markdown",
+        content=report.markdown_content.encode('utf-8'),
+        media_type="text/markdown; charset=utf-8",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
         }
+    )
+
+
+@router.get("/tasks/{task_id}/status", response_model=TaskStatusResponse)
+async def get_task_status(
+    task_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get task execution status and variable details"""
+    task = db.query(GenerationTask).filter(GenerationTask.id == task_id).first()
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Get all variable execution records
+    variables = db.query(GenerationTaskVariable).filter(
+        GenerationTaskVariable.task_id == task_id
+    ).all()
+    
+    # Get report if exists
+    report = db.query(Report).filter(Report.task_id == task_id).first()
+    
+    variable_details = [
+        TaskVariableDetail(
+            variable_name=var.variable_name,
+            source=var.source.value,
+            status=VariableStatusEnum(var.status.value),
+            started_at=var.started_at,
+            finished_at=var.finished_at,
+            duration_ms=var.duration_ms,
+            error_message=var.error_message,
+            result_preview=var.result_preview
+        )
+        for var in variables
+    ]
+    
+    return TaskStatusResponse(
+        task_id=task.id,
+        template_id=task.template_id,
+        status=ReportStatusEnum(task.status.value),
+        inputs_json=task.inputs_json,
+        started_at=task.started_at,
+        finished_at=task.finished_at,
+        created_at=task.created_at,
+        report_id=report.id if report else None,
+        variables=variable_details
     )
 

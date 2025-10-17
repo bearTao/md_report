@@ -2,21 +2,30 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import logging
 
 from app.database import init_db
 from app.api import templates, reports, config as config_api
+from app.logging_config import setup_logging
+
+# 配置日志 - 默认INFO，可通过环境变量LOG_LEVEL覆盖
+logger = setup_logging(log_file="app.log")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    print("Initializing database...")
+    logger.info("=" * 60)
+    logger.info("Application starting...")
+    logger.info("Initializing database...")
     init_db()
-    print("Application started")
+    logger.info("Database initialized successfully")
+    logger.info("Application started and ready to serve requests")
+    logger.info("=" * 60)
     yield
     # Shutdown
-    print("Application shutdown")
+    logger.info("Application shutting down...")
 
 
 # Create FastAPI app

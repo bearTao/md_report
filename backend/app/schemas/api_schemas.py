@@ -104,11 +104,51 @@ class ReportListResponse(BaseModel):
 class AIConfigResponse(BaseModel):
     configured: bool
     provider: Optional[str] = "openai"
+    api_base: Optional[str] = None
 
 
 class AIConfigUpdate(BaseModel):
     provider: str = "openai"
     api_key: str
+    api_base: Optional[str] = None
+
+
+# Task status schemas
+class VariableStatusEnum(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class TaskVariableDetail(BaseModel):
+    variable_name: str
+    source: str
+    status: VariableStatusEnum
+    started_at: Optional[datetime]
+    finished_at: Optional[datetime]
+    duration_ms: Optional[int]
+    error_message: Optional[str]
+    result_preview: Optional[Dict[str, Any]]
+    
+    class Config:
+        from_attributes = True
+
+
+class TaskStatusResponse(BaseModel):
+    task_id: str
+    template_id: str
+    status: ReportStatusEnum
+    inputs_json: Dict[str, Any]
+    started_at: Optional[datetime]
+    finished_at: Optional[datetime]
+    created_at: datetime
+    report_id: Optional[str] = None
+    variables: List[TaskVariableDetail] = []
+    
+    class Config:
+        from_attributes = True
 
 
 # Standard API response

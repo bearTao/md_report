@@ -2,6 +2,7 @@
 from typing import Any, Dict
 import json
 import re
+import logging
 from app.executors.base import BaseVariableExecutor
 from app.core.exceptions import AiGenerationError
 
@@ -9,6 +10,8 @@ from app.core.exceptions import AiGenerationError
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_openai import ChatOpenAI
+
+logger = logging.getLogger(__name__)
 
 
 class AiExecutor(BaseVariableExecutor):
@@ -26,24 +29,42 @@ class AiExecutor(BaseVariableExecutor):
         """
         Generate AI content using LangChain
         """
+        logger.info(f"🤖 开始执行AI变量: {self.variable_name}")
+        
         if not self.metadata.ai_config:
+            logger.error(f"❌ 变量 {self.variable_name} 缺少 ai_config")
             raise AiGenerationError(
                 self.variable_name,
                 "ai_config not provided"
             )
         
         if not self.openai_api_key:
+            logger.error(f"❌ OpenAI API key 未配置")
             raise AiGenerationError(
                 self.variable_name,
                 "OpenAI API key not configured"
             )
         
         config = self.metadata.ai_config
+        logger.info(f"📝 AI配置: model={config.model}, temperature={config.temperature}")
         
         # Interpolate prompt template with dependencies
         try:
+            logger.debug(f"🔄 开始插值提示词模板")
+            logger.debug(f"提示词模板:\n{config.prompt_template}")
+            logger.debug(f"依赖变量: {self.metadata.dependencies}")
+            
+            # 显示依赖变量的值
+            if self.metadata.dependencies:
+                for dep in self.metadata.dependencies:
+                    dep_value = self.context.get_variable(dep)
+                    logger.debug(f"依赖变量 '{dep}' 的值: {str(dep_value)[:200]}...")
+            
             prompt_text = self.context.interpolate_string(config.prompt_template)
+            logger.debug(f"✅ 提示词插值成功，长度: {len(prompt_text)} 字符")
+            logger.info(f"📝 最终提示词预览:\n{'-'*60}\n{prompt_text[:500]}...\n{'-'*60}")
         except Exception as e:
+            logger.error(f"❌ 提示词插值失败: {str(e)}", exc_info=True)
             raise AiGenerationError(
                 self.variable_name,
                 f"Failed to interpolate prompt: {str(e)}",
@@ -53,6 +74,7 @@ class AiExecutor(BaseVariableExecutor):
         # Build LangChain components
         try:
             # 1. Create LLM
+            logger.info(f"🔧 创建LLM实例...")
             llm_kwargs = {
                 "model": config.model,
                 "temperature": config.temperature or 0.7,
@@ -63,8 +85,13 @@ class AiExecutor(BaseVariableExecutor):
             # 添加自定义API base（如硅基流动）
             if self.openai_api_base:
                 llm_kwargs["base_url"] = self.openai_api_base
+                logger.info(f"🌐 使用自定义API base: {self.openai_api_base}")
             
+            # 隐藏API key的配置信息
+            safe_config = {k: (v if k != "api_key" else "***") for k, v in llm_kwargs.items()}
+            logger.debug(f"LLM配置: {safe_config}")
             llm = ChatOpenAI(**llm_kwargs)
+            logger.info(f"✅ LLM实例创建成功")
             
             # 2. Create output parser with custom preprocessing
             parser = JsonOutputParser()
@@ -96,16 +123,41 @@ class AiExecutor(BaseVariableExecutor):
             ])
             
             # 5. Create chain: prompt | llm
+            logger.info(f"⛓️  创建LangChain链...")
             chain = prompt | llm
             
             # 6. Invoke chain and get raw output
-            raw_output = await chain.ainvoke({})
+            logger.info(f"🚀 调用AI模型生成内容...")
+            logger.info(f"⏳ 请等待AI响应（可能需要10-60秒）...")
+            logger.debug(f"调用参数: 空字典（提示词已在prompt中）")
+            
+            import time
+            start_time = time.time()
+            
+            try:
+                raw_output = await chain.ainvoke({})
+                elapsed = time.time() - start_time
+                
+                logger.info(f"✅ AI响应完成，耗时: {elapsed:.2f}秒")
+                logger.debug(f"响应对象类型: {type(raw_output)}")
+                
+            except Exception as api_error:
+                elapsed = time.time() - start_time
+                logger.error(f"❌ AI API调用失败，耗时: {elapsed:.2f}秒")
+                logger.error(f"错误类型: {type(api_error).__name__}")
+                logger.error(f"错误详情: {str(api_error)}", exc_info=True)
+                raise
             
             # 7. Extract content from response
             if hasattr(raw_output, 'content'):
                 content = raw_output.content
+                logger.debug(f"从响应的content属性提取内容")
             else:
                 content = str(raw_output)
+                logger.debug(f"直接转换响应为字符串")
+            
+            logger.info(f"📄 AI响应内容长度: {len(content)} 字符")
+            logger.debug(f"AI完整响应:\n{'-'*60}\n{content}\n{'-'*60}")
             
             # Debug: Check if content is empty
             if not content or not content.strip():
@@ -115,15 +167,22 @@ class AiExecutor(BaseVariableExecutor):
                 )
             
             # 8. Clean and parse JSON output
+            logger.info(f"🔍 解析AI输出为JSON...")
             result = self._parse_ai_output(content)
+            logger.info(f"✅ JSON解析成功")
+            logger.debug(f"解析结果: {str(result)[:200]}...")
             
-            # 8. Validate against schema if provided
+            # 9. Validate against schema if provided
             if self.metadata.schema:
+                logger.info(f"🔍 验证schema...")
                 self._validate_schema(result, self.metadata.schema)
+                logger.info(f"✅ Schema验证通过")
             
+            logger.info(f"🎉 AI变量 {self.variable_name} 执行成功")
             return result
             
         except Exception as e:
+            logger.error(f"❌ AI生成失败: {str(e)}", exc_info=True)
             raise AiGenerationError(
                 self.variable_name,
                 f"AI generation failed: {str(e)}",
@@ -134,20 +193,28 @@ class AiExecutor(BaseVariableExecutor):
         """
         解析AI输出，处理常见的格式问题
         """
+        logger.debug(f"开始解析AI输出，原始长度: {len(raw_output)} 字符")
+        
         # 1. 去除Markdown代码块标记
         cleaned = raw_output.strip()
+        logger.debug(f"去除首尾空白后长度: {len(cleaned)} 字符")
         
         # 匹配 ```json ... ``` 或 ``` ... ```
         code_block_pattern = r'```(?:json)?\s*\n?(.*?)\n?```'
         match = re.search(code_block_pattern, cleaned, re.DOTALL)
         if match:
             cleaned = match.group(1).strip()
+            logger.debug(f"检测到Markdown代码块，提取后长度: {len(cleaned)} 字符")
         
         # 2. 尝试解析JSON
+        logger.debug(f"尝试解析JSON:\n{cleaned[:500]}...")
         try:
             result = json.loads(cleaned)
+            logger.debug(f"✅ JSON解析成功，结果类型: {type(result)}")
             return result
         except json.JSONDecodeError as e:
+            logger.warning(f"⚠️  初次JSON解析失败: {str(e)}")
+            logger.debug(f"解析失败位置: 行{e.lineno} 列{e.colno}")
             # 3. 如果失败，尝试修复常见错误
             fixed = cleaned
             
