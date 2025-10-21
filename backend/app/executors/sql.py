@@ -21,6 +21,10 @@ class SqlExecutor(BaseVariableExecutor):
     async def _execute_impl(self) -> Any:
         """
         Execute SQL query and return results based on result_mode
+        
+        Supports hybrid scenarios:
+        - {{variable}}: String interpolation for SQL structure (table names, columns, etc.)
+        - :param_name: Parameterized queries for data values (safe, prevents SQL injection)
         """
         if not self.metadata.sql_config:
             raise SqlExecutionError(
@@ -30,7 +34,9 @@ class SqlExecutor(BaseVariableExecutor):
         
         config = self.metadata.sql_config
         
-        # Interpolate dependencies into SQL query
+        # Step 1: Interpolate {{variable}} patterns for SQL structure
+        # This allows dynamic table names, column lists, JOIN clauses, etc.
+        # Note: :param_name placeholders will be preserved for parameterized queries
         try:
             query = self.context.interpolate_string(config.query)
         except Exception as e:
@@ -40,14 +46,16 @@ class SqlExecutor(BaseVariableExecutor):
                 e
             )
         
-        # Prepare parameters if needed
+        # Step 2: Prepare parameters for :param_name placeholders
+        # These will be safely passed to the database driver
         parameters = {}
         if config.parameters:
             for param_name in config.parameters:
                 if self.context.has_variable(param_name):
                     parameters[param_name] = self.context.get_variable(param_name)
         
-        # Execute query
+        # Step 3: Execute query with both interpolated SQL and parameters
+        # The database driver will handle proper escaping and type conversion
         try:
             results = await db_connector.execute_query(
                 connection_name=config.connection,

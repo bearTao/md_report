@@ -148,11 +148,11 @@ class ExecutionScheduler:
             for result in batch_results:
                 all_results[result.variable_name] = result
                 
-                # Notify completion
+                # Notify completion or failure (this is the key!)
                 if progress_callback:
                     await progress_callback(
                         result.variable_name,
-                        result.status,
+                        result.status,  # This will be FAILED if execution failed
                         result
                     )
                 
@@ -164,6 +164,8 @@ class ExecutionScheduler:
                         raise Exception(
                             f"Required variable '{result.variable_name}' failed: {result.error}"
                         )
+                    # For optional variables or those with defaults, continue execution
+                    # The frontend will see the FAILED status via WebSocket
         
         return all_results
 

@@ -58,14 +58,93 @@ class ExecutionContext:
         Used for SQL queries, API URLs, AI prompts, system values
         """
         def replace_var(match):
-            var_name = match.group(1).strip()
-            if not self.has_variable(var_name):
-                raise DependencyError(f"Variable '{var_name}' not found for interpolation")
-            value = self.get_variable(var_name)
-            # Convert to string representation
-            if isinstance(value, (dict, list)):
-                return json.dumps(value, ensure_ascii=False)
-            return str(value)
+            var_expr = match.group(1).strip()
+            
+            # Check if expression contains Jinja2 filters (e.g., "variable | length")
+            if '|' in var_expr:
+                parts = var_expr.split('|')
+                var_name = parts[0].strip()
+                filters = [f.strip() for f in parts[1:]]
+                
+                # Get the variable value
+                value = _get_variable_value(var_name)
+                
+                # Apply filters
+                for filter_name in filters:
+                    value = _apply_filter(filter_name, value, var_name)
+                
+                return str(value) if value is not None else ''
+            else:
+                # No filters, just get the variable
+                value = _get_variable_value(var_expr)
+                
+                # Convert to string representation
+                if isinstance(value, (dict, list)):
+                    return json.dumps(value, ensure_ascii=False)
+                elif value is None:
+                    return ''  # Return empty string for None values
+                return str(value)
+        
+        def _get_variable_value(var_name):
+            """Helper to get variable value, supporting nested attributes"""
+            # Support nested attribute access (e.g., overview.micro_grid_name)
+            if '.' in var_name:
+                parts = var_name.split('.')
+                base_var = parts[0]
+                
+                if base_var not in self.variables:
+                    raise DependencyError(f"Variable '{base_var}' not found for interpolation")
+                
+                value = self.variables[base_var]
+                
+                # Navigate through nested attributes
+                for attr in parts[1:]:
+                    if isinstance(value, dict):
+                        if attr not in value:
+                            raise DependencyError(f"Variable '{var_name}' not found ('{attr}' not in {base_var})")
+                        value = value[attr]
+                    elif hasattr(value, attr):
+                        value = getattr(value, attr)
+                    else:
+                        raise DependencyError(f"Variable '{var_name}' not found ('{attr}' not accessible)")
+                return value
+            else:
+                # Simple variable access
+                if var_name not in self.variables:
+                    raise DependencyError(f"Variable '{var_name}' not found for interpolation")
+                return self.variables[var_name]
+        
+        def _apply_filter(filter_name, value, var_name):
+            """Apply Jinja2-style filter to value"""
+            if filter_name == 'length':
+                if value is None:
+                    return 0
+                if isinstance(value, (list, dict, str)):
+                    return len(value)
+                else:
+                    raise DependencyError(f"Cannot apply 'length' filter to {var_name} (type: {type(value).__name__})")
+            elif filter_name == 'default':
+                # Simple default filter (no parameters supported yet)
+                return value if value is not None else ''
+            elif filter_name == 'upper':
+                return str(value).upper() if value is not None else ''
+            elif filter_name == 'lower':
+                return str(value).lower() if value is not None else ''
+            elif filter_name == 'trim':
+                return str(value).strip() if value is not None else ''
+            elif filter_name == 'first':
+                if isinstance(value, (list, tuple)) and len(value) > 0:
+                    return value[0]
+                return value
+            elif filter_name == 'last':
+                if isinstance(value, (list, tuple)) and len(value) > 0:
+                    return value[-1]
+                return value
+            else:
+                # Unknown filter - just return the value
+                import logging
+                logging.warning(f"Unknown filter '{filter_name}' applied to {var_name}, ignoring")
+                return value
         
         # First, replace {{variable}} pattern (Jinja2 style)
         template_str = re.sub(r'\{\{([^}]+)\}\}', replace_var, template_str)

@@ -14,12 +14,18 @@ from app.models.db_models import (
 from app.schemas.api_schemas import (
     ReportGenerateRequest, ReportGenerateResponse,
     ReportResponse, ReportStatusEnum,
-    TaskStatusResponse, TaskVariableDetail, VariableStatusEnum
+    TaskStatusResponse, TaskVariableDetail, VariableStatusEnum,
+    ReportListResponse, ReportListItem
 )
 from app.services.scheduler import ExecutionScheduler
 from app.services.context import ExecutionContext
 from app.services.renderer import template_renderer
 from app.core.models import VariableMetadata, VariableStatus
+from app.services.websocket_manager import ws_manager
+from app.core.exceptions import (
+    TemplateRenderError, SqlExecutionError, AiGenerationError,
+    VariableExecutionError, DependencyError, ValidationError
+)
 
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -56,6 +62,162 @@ def get_ai_config(db: Session) -> tuple[Optional[str], Optional[str]]:
     return None, None
 
 
+def _format_error_details(e: Exception) -> Dict[str, Any]:
+    """
+    Format exception details for frontend display
+    
+    Returns a dictionary with:
+    - code: Error type code
+    - message: User-friendly error message
+    - details: Detailed technical information
+    - suggestion: Optional suggestion for fixing the error
+    """
+    import traceback
+    import re
+    
+    error_info = {
+        "code": "UNKNOWN_ERROR",
+        "message": str(e),
+        "details": {},
+        "suggestion": None
+    }
+    
+    # Get traceback for detailed information
+    tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
+    tb_str = ''.join(tb_lines)
+    
+    # Detect error type and format accordingly
+    if isinstance(e, TemplateRenderError):
+        error_info["code"] = "TEMPLATE_RENDER_ERROR"
+        error_info["message"] = "模板渲染失败"
+        
+        # Try to extract line number from Jinja2 error
+        line_match = re.search(r'line (\d+)', str(e))
+        if line_match:
+            line_number = line_match.group(1)
+            error_info["details"]["line"] = int(line_number)
+            error_info["message"] = f"模板渲染失败（第{line_number}行）"
+        
+        # Extract specific error type
+        error_str = str(e)
+        if "'NoneType' object" in error_str or "has no attribute" in error_str:
+            error_info["details"]["type"] = "null_value_error"
+            error_info["details"]["description"] = "尝试访问空值(None)的属性或进行运算"
+            error_info["suggestion"] = "检查变量是否为空，使用 'or' 提供默认值，如：{{ value or 0 }}"
+            
+            # Try to extract field name
+            attr_match = re.search(r"has no attribute '(\w+)'", error_str)
+            if attr_match:
+                field_name = attr_match.group(1)
+                error_info["details"]["field"] = field_name
+                error_info["suggestion"] = f"字段 '{field_name}' 不存在或为空。使用 .get('{field_name}', default_value) 安全访问"
+        
+        elif "unsupported operand type" in error_str:
+            error_info["details"]["type"] = "type_error"
+            error_info["details"]["description"] = "类型不匹配，通常是None参与了数值运算"
+            error_info["suggestion"] = "确保所有数值运算的变量都有默认值，如：{% set sum = (a or 0) + (b or 0) %}"
+        
+        elif "division by zero" in error_str or "ZeroDivisionError" in error_str:
+            error_info["details"]["type"] = "division_by_zero"
+            error_info["details"]["description"] = "除数为0"
+            error_info["suggestion"] = "添加除数检查：{% set ratio = (a / b) if b != 0 else 0 %}"
+        
+        elif "not subscriptable" in error_str:
+            error_info["details"]["type"] = "subscript_error"
+            error_info["details"]["description"] = "尝试对不支持索引的对象使用[]或[:n]"
+            error_info["suggestion"] = "检查变量类型，字符串切片前确认是字符串，如：{{ date[:10] if date else '-' }}"
+        
+        elif "'dict object' has no attribute" in error_str:
+            error_info["details"]["type"] = "dict_access_error"
+            error_info["details"]["description"] = "尝试用点号访问字典的键，但该键可能是保留字"
+            error_info["suggestion"] = "使用 .get() 方法或方括号访问字典：{{ dict.get('key', default) }} 或 {{ dict['key'] }}"
+        
+        elif "must be real number" in error_str or "TypeError" in tb_str and "format" in tb_str:
+            error_info["details"]["type"] = "format_type_error"
+            error_info["details"]["description"] = "格式化时类型不匹配，期望数字但得到字符串"
+            error_info["suggestion"] = "在格式化前先转换类型：{{ '%.2f'|format(value|float) }} 或 {{ '%.2f'|format(value|int) }}"
+            
+            # Try to extract the problematic value
+            type_match = re.search(r'must be real number, not (\w+)', error_str)
+            if type_match:
+                wrong_type = type_match.group(1)
+                error_info["details"]["wrong_type"] = wrong_type
+                error_info["message"] = f"模板渲染失败：格式化错误（得到{wrong_type}类型，期望数字）"
+        
+        else:
+            error_info["details"]["type"] = "syntax_error"
+            error_info["details"]["description"] = str(e)
+        
+        # Include the specific error message
+        error_info["details"]["error"] = str(e).split(":")[-1].strip()
+    
+    elif isinstance(e, SqlExecutionError):
+        error_info["code"] = "SQL_EXECUTION_ERROR"
+        error_info["message"] = f"SQL查询执行失败: 变量 '{e.variable_name}'"
+        error_info["details"]["variable"] = e.variable_name
+        error_info["details"]["error"] = e.message
+        
+        error_str = str(e).lower()
+        if "table" in error_str and "doesn't exist" in error_str:
+            error_info["suggestion"] = "检查数据库连接和表名是否正确"
+        elif "syntax error" in error_str:
+            error_info["suggestion"] = "检查SQL语法，确保跨数据库兼容"
+        elif "timeout" in error_str:
+            error_info["suggestion"] = "查询超时，尝试优化SQL或增加timeout设置"
+        elif "permission denied" in error_str or "access denied" in error_str:
+            error_info["suggestion"] = "检查数据库连接权限"
+        else:
+            error_info["suggestion"] = "检查SQL查询语句和参数是否正确"
+    
+    elif isinstance(e, AiGenerationError):
+        error_info["code"] = "AI_GENERATION_ERROR"
+        error_info["message"] = f"AI生成失败: 变量 '{e.variable_name}'"
+        error_info["details"]["variable"] = e.variable_name
+        error_info["details"]["error"] = e.message
+        
+        error_str = str(e).lower()
+        if "api key" in error_str or "authentication" in error_str:
+            error_info["suggestion"] = "检查AI API密钥配置"
+        elif "rate limit" in error_str:
+            error_info["suggestion"] = "API调用频率超限，稍后重试"
+        elif "timeout" in error_str:
+            error_info["suggestion"] = "AI生成超时，尝试简化提示词或增加超时时间"
+        else:
+            error_info["suggestion"] = "检查AI配置和提示词"
+    
+    elif isinstance(e, VariableExecutionError):
+        error_info["code"] = "VARIABLE_EXECUTION_ERROR"
+        error_info["message"] = f"变量执行失败: '{e.variable_name}'"
+        error_info["details"]["variable"] = e.variable_name
+        error_info["details"]["error"] = e.message
+        error_info["suggestion"] = "检查变量配置和依赖关系"
+    
+    elif isinstance(e, DependencyError):
+        error_info["code"] = "DEPENDENCY_ERROR"
+        error_info["message"] = "变量依赖关系错误"
+        error_info["details"]["error"] = str(e)
+        error_info["suggestion"] = "检查变量的dependencies配置，确保所有依赖变量都存在"
+    
+    elif isinstance(e, ValidationError):
+        error_info["code"] = "VALIDATION_ERROR"
+        error_info["message"] = "输入验证失败"
+        error_info["details"]["error"] = str(e)
+        error_info["suggestion"] = "检查用户输入是否符合要求"
+    
+    else:
+        # Generic error
+        error_info["code"] = "EXECUTION_ERROR"
+        error_info["message"] = f"执行失败: {str(e)}"
+        error_info["details"]["error"] = str(e)
+        error_info["details"]["type"] = type(e).__name__
+    
+    # Add truncated traceback (last 10 lines for context)
+    tb_lines_list = tb_str.strip().split('\n')
+    error_info["details"]["traceback"] = tb_lines_list[-10:]  # Last 10 lines
+    
+    return error_info
+
+
 async def execute_report_generation(
     task_id: str,
     template_id: str,
@@ -74,8 +236,53 @@ async def execute_report_generation(
         task.status = ReportStatus.RUNNING
         task.started_at = datetime.utcnow()
         db_session.commit()
+        
+        # Broadcast task started event
+        await ws_manager.broadcast_task_started(
+            task_id=task_id,
+            template_id=template_id,
+            queued_at=task.created_at,
+            started_at=task.started_at
+        )
     
     try:
+        # Load database connections from database
+        from app.models.db_models import DBConnection
+        from app.connectors.database import db_connector
+        
+        db_connections = db_session.query(DBConnection).filter(
+            DBConnection.is_active == "true"
+        ).all()
+        
+        for db_conn in db_connections:
+            try:
+                # Build connection URL
+                engine_dialects = {
+                    "postgresql": "postgresql+psycopg2",
+                    "mysql": "mysql+pymysql",
+                    "sqlserver": "mssql+pyodbc",
+                    "oracle": "oracle+cx_oracle"
+                }
+                
+                dialect = engine_dialects.get(db_conn.engine.value, db_conn.engine.value)
+                from urllib.parse import quote_plus
+                password = db_conn.password_ciphertext  # TODO: Decrypt if encrypted
+                
+                connection_url = f"{dialect}://{db_conn.username}:{quote_plus(password)}@{db_conn.host}:{db_conn.port}/{db_conn.database}"
+                
+                # Register connection
+                db_connector.register_connection(
+                    name=db_conn.name,
+                    connection_url_or_engine=connection_url,
+                    pool_size=5,
+                    max_overflow=10
+                )
+                
+                print(f"Registered database connection: {db_conn.name}")
+                
+            except Exception as e:
+                print(f"Failed to register connection {db_conn.name}: {str(e)}")
+        
         # Parse metadata to VariableMetadata objects
         parsed_metadata = {}
         for var_name, var_config in metadata.items():
@@ -110,6 +317,15 @@ async def execute_report_generation(
                 )
                 db_session.add(var_record)
                 db_session.commit()
+                
+                # Broadcast variable started event
+                await ws_manager.broadcast_variable_started(
+                    task_id=task_id,
+                    variable_name=var_name,
+                    source=var_meta.source.value,
+                    dependencies=var_meta.dependencies or [],
+                    started_at=var_record.started_at
+                )
             elif status in (VariableStatus.SUCCESS, VariableStatus.FAILED):
                 # Update existing record
                 var_record = db_session.query(GenerationTaskVariable).filter(
@@ -130,6 +346,22 @@ async def execute_report_generation(
                             preview = json.dumps(result.value, ensure_ascii=False)[:500]
                             var_record.result_preview = {"preview": preview}
                     db_session.commit()
+                    
+                    # Broadcast variable completed or failed event
+                    if status == VariableStatus.SUCCESS:
+                        await ws_manager.broadcast_variable_completed(
+                            task_id=task_id,
+                            variable_name=var_name,
+                            duration_ms=var_record.duration_ms or 0,
+                            result_preview=var_record.result_preview
+                        )
+                    else:  # FAILED
+                        await ws_manager.broadcast_variable_failed(
+                            task_id=task_id,
+                            variable_name=var_name,
+                            error={"code": "EXECUTION_ERROR", "message": result.error if result else "Unknown error"},
+                            duration_ms=var_record.duration_ms or 0
+                        )
         
         # Execute all variables
         results = await scheduler.execute_all(context, progress_callback)
@@ -170,16 +402,39 @@ async def execute_report_generation(
         
         db_session.commit()
         
+        # Broadcast task completed event
+        await ws_manager.broadcast_task_completed(
+            task_id=task_id,
+            report_id=report_id,
+            summary={
+                "duration_ms": duration_ms,
+                "ai_cost_usd": 0  # TODO: Calculate actual AI cost
+            }
+        )
+        
     except Exception as e:
         # Mark task as failed
         task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
+        duration_ms = None
         if task:
             task.status = ReportStatus.FAILED
             task.finished_at = datetime.utcnow()
+            if task.started_at:
+                duration_ms = int((task.finished_at - task.started_at).total_seconds() * 1000)
             db_session.commit()
         
+        # Format detailed error information
+        error_info = _format_error_details(e)
+        
+        # Broadcast task failed event
+        await ws_manager.broadcast_task_failed(
+            task_id=task_id,
+            error=error_info,
+            summary={"duration_ms": duration_ms or 0}
+        )
+        
         # Log error
-        print(f"Report generation failed for task {task_id}: {str(e)}")
+        print(f"Report generation failed for task {task_id}: {error_info['message']}")
         import traceback
         traceback.print_exc()
 
@@ -229,6 +484,61 @@ async def generate_report(
     )
 
 
+@router.get("/", response_model=ReportListResponse)
+async def list_reports(
+    page: int = 1,
+    page_size: int = 20,
+    status: Optional[str] = None,
+    template_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Get report history list with filters"""
+    # Build query
+    query = db.query(Report)
+    
+    # Apply filters
+    if status:
+        try:
+            status_enum = ReportStatus(status)
+            query = query.filter(Report.status == status_enum)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+    
+    if template_id:
+        query = query.filter(Report.template_id == template_id)
+    
+    # Order by created_at desc (newest first)
+    query = query.order_by(Report.created_at.desc())
+    
+    # Count total
+    total = query.count()
+    
+    # Pagination
+    offset = (page - 1) * page_size
+    reports = query.offset(offset).limit(page_size).all()
+    
+    items = []
+    for r in reports:
+        # Convert created_at to datetime if it's a string
+        created_at = r.created_at
+        if isinstance(created_at, str):
+            try:
+                created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                created_at = datetime.utcnow()
+        
+        items.append(ReportListItem(
+            id=r.id,
+            template_id=r.template_id,
+            task_id=r.task_id,  # 添加task_id用于跳转到生成进度页面
+            title=r.title,
+            status=ReportStatusEnum(r.status.value),
+            created_at=created_at
+        ))
+    
+    return ReportListResponse(items=items, total=total)
+
+
 @router.get("/{report_id}", response_model=ReportResponse)
 async def get_report(
     report_id: str,
@@ -240,6 +550,22 @@ async def get_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     
+    # Convert datetime fields if they're strings
+    created_at = report.created_at
+    updated_at = report.updated_at
+    
+    if isinstance(created_at, str):
+        try:
+            created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+        except (ValueError, AttributeError):
+            created_at = datetime.utcnow()
+    
+    if isinstance(updated_at, str):
+        try:
+            updated_at = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+        except (ValueError, AttributeError):
+            updated_at = datetime.utcnow()
+    
     return ReportResponse(
         id=report.id,
         template_id=report.template_id,
@@ -249,8 +575,8 @@ async def get_report(
         markdown_content=report.markdown_content,
         cost_usd=float(report.cost_usd) if report.cost_usd else None,
         duration_ms=report.duration_ms,
-        created_at=report.created_at,
-        updated_at=report.updated_at
+        created_at=created_at,
+        updated_at=updated_at
     )
 
 

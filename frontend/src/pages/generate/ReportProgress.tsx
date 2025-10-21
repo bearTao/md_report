@@ -12,6 +12,7 @@ import {
   Collapse,
   Alert,
   Spin,
+  Badge,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -19,31 +20,45 @@ import {
   SyncOutlined,
   ClockCircleOutlined,
   EyeOutlined,
+  WifiOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getTaskStatus } from '../../api';
-import type { TaskVariableDetail } from '../../types';
+import { useWebSocket } from '../../hooks/useWebSocket';
+import type { TaskVariableDetail, WSEvent } from '../../types';
 
 const { Panel } = Collapse;
 
 const ReportProgress = () => {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
-  const [pollingInterval, setPollingInterval] = useState(1000);
+  const [reportId, setReportId] = useState<string | null>(null);
 
-  // 轮询任务状态
-  const { data: taskStatus, isLoading } = useQuery({
+  // 获取初始任务状态
+  const { data: taskStatus, isLoading, refetch } = useQuery({
     queryKey: ['taskStatus', taskId],
     queryFn: () => getTaskStatus(taskId!),
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      // 如果任务完成或失败，停止轮询
-      if (data?.status === 'success' || data?.status === 'failed') {
-        return false;
-      }
-      return pollingInterval;
-    },
     enabled: !!taskId,
+    refetchOnWindowFocus: false,
+  });
+
+  // WebSocket实时更新
+  const { isConnected, latestEvent } = useWebSocket(taskId || null, {
+    onMessage: (event: WSEvent) => {
+      console.log('WebSocket event:', event);
+      
+      // 处理任务完成事件
+      if (event.type === 'task_completed' && event.report_id) {
+        setReportId(event.report_id);
+        // 刷新任务状态以获取最终数据
+        refetch();
+      }
+      
+      // 处理任务失败或变量更新事件，刷新状态
+      if (['task_failed', 'variable_completed', 'variable_failed'].includes(event.type)) {
+        refetch();
+      }
+    },
   });
 
   // 计算进度
@@ -116,10 +131,22 @@ const ReportProgress = () => {
   const progress = getProgress();
   const isCompleted = taskStatus.status === 'success';
   const isFailed = taskStatus.status === 'failed';
+  const finalReportId = reportId || taskStatus.report_id;
 
   return (
     <div>
-      <Card title="报告生成进度" style={{ marginBottom: 16 }}>
+      <Card 
+        title={
+          <Space>
+            <span>报告生成进度</span>
+            <Badge 
+              status={isConnected ? 'processing' : 'default'} 
+              text={isConnected ? '实时连接' : '已断开'}
+            />
+          </Space>
+        } 
+        style={{ marginBottom: 16 }}
+      >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           {/* 总体进度 */}
           <div>
@@ -161,7 +188,7 @@ const ReportProgress = () => {
           </Descriptions>
 
           {/* 完成提示 */}
-          {isCompleted && taskStatus.report_id && (
+          {isCompleted && finalReportId && (
             <Alert
               message="报告生成成功！"
               description="点击下方按钮查看报告"
@@ -172,7 +199,7 @@ const ReportProgress = () => {
                   size="small"
                   type="primary"
                   icon={<EyeOutlined />}
-                  onClick={() => navigate(`/reports/${taskStatus.report_id}`)}
+                  onClick={() => navigate(`/reports/${finalReportId}`)}
                 >
                   查看报告
                 </Button>

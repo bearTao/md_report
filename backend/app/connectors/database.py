@@ -4,6 +4,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.engine import Engine
+from datetime import datetime, date
+from decimal import Decimal
 import time
 
 
@@ -15,6 +17,27 @@ class DatabaseConnector:
     
     def __init__(self):
         self._engines: Dict[str, Any] = {}
+    
+    def _convert_to_serializable(self, obj: Any) -> Any:
+        """
+        Convert non-JSON-serializable objects to serializable format
+        
+        Args:
+            obj: Object to convert
+            
+        Returns:
+            JSON-serializable object
+        """
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        elif isinstance(obj, Decimal):
+            return float(obj)
+        elif isinstance(obj, bytes):
+            return obj.decode('utf-8', errors='ignore')
+        elif obj is None:
+            return None
+        else:
+            return obj
         
     def register_connection(self, name: str, connection_url_or_engine: Union[str, Engine], 
                            pool_size: int = 5, max_overflow: int = 10):
@@ -85,10 +108,13 @@ class DatabaseConnector:
                 else:
                     result = conn.execute(text(query))
                 
-                # Convert to list of dicts
+                # Convert to list of dicts with JSON-serializable values
                 rows = []
                 for row in result:
-                    rows.append(dict(row._mapping))
+                    row_dict = {}
+                    for key, value in row._mapping.items():
+                        row_dict[key] = self._convert_to_serializable(value)
+                    rows.append(row_dict)
                 
                 return rows
                 

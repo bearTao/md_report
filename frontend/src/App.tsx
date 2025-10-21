@@ -9,7 +9,9 @@ import TemplateEditSimple from './pages/templates/TemplateEditSimple';
 import GenerateReport from './pages/generate/GenerateReport';
 import ReportProgress from './pages/generate/ReportProgress';
 import ReportPreview from './pages/reports/ReportPreview';
+import ReportList from './pages/reports/ReportList';
 import AISettings from './pages/settings/AISettings';
+import DBSettings from './pages/settings/DBSettings';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,8 +35,10 @@ function App() {
               <Route path="templates/:templateId/edit" element={<TemplateEdit />} />
               <Route path="generate" element={<GenerateReport />} />
               <Route path="generate/:taskId" element={<ReportProgress />} />
+              <Route path="reports" element={<ReportList />} />
               <Route path="reports/:reportId" element={<ReportPreview />} />
               <Route path="settings/ai" element={<AISettings />} />
+              <Route path="settings/db" element={<DBSettings />} />
             </Route>
           </Routes>
         </BrowserRouter>

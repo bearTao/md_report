@@ -131,6 +131,20 @@ export interface Report {
   updated_at: string;
 }
 
+export interface ReportListItem {
+  id: string;
+  template_id: string;
+  task_id?: string;  // 用于跳转到生成进度页面
+  title: string;
+  status: TaskStatus;
+  created_at: string;
+}
+
+export interface ReportListResponse {
+  items: ReportListItem[];
+  total: number;
+}
+
 // WebSocket 事件类型
 export type WSEventType = 
   | 'task_started'
@@ -243,5 +257,68 @@ export interface UpdateAIConfigRequest {
   provider: string;
   api_key: string;
   api_base?: string;
+}
+
+// 数据库连接类型
+export type DBEngine = 'postgresql' | 'mysql' | 'sqlserver' | 'oracle';
+
+export interface DBConnection {
+  id: string;
+  name: string;
+  engine: DBEngine;
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  options?: Record<string, any>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DBConnectionCreate {
+  name: string;
+  engine: DBEngine;
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password: string;
+  options?: Record<string, any>;
+  is_active?: boolean;
+}
+
+export interface DBConnectionUpdate {
+  name?: string;
+  engine?: DBEngine;
+  host?: string;
+  port?: number;
+  database?: string;
+  username?: string;
+  password?: string;
+  options?: Record<string, any>;
+  is_active?: boolean;
+}
+
+export interface DBConnectionListItem {
+  id: string;
+  name: string;
+  engine: DBEngine;
+  host: string;
+  port: number;
+  database: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface DBConnectionListResponse {
+  items: DBConnectionListItem[];
+  total: number;
+}
+
+export interface DBConnectionTestResponse {
+  success: boolean;
+  message: string;
+  details?: Record<string, any>;
 }
 

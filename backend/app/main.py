@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.database import init_db
-from app.api import templates, reports, config as config_api
+from app.api import templates, reports, config as config_api, websocket, db_connections
 from app.logging_config import setup_logging
 
 # 配置日志 - 默认INFO，可通过环境变量LOG_LEVEL覆盖
@@ -49,6 +49,8 @@ app.add_middleware(
 app.include_router(templates.router)
 app.include_router(reports.router)
 app.include_router(config_api.router)
+app.include_router(websocket.router)
+app.include_router(db_connections.router)
 
 
 @app.get("/")

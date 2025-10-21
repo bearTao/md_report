@@ -4,6 +4,8 @@ import {
   FileTextOutlined,
   ThunderboltOutlined,
   SettingOutlined,
+  HistoryOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 
 const { Header, Content, Sider } = AntLayout;
@@ -24,9 +26,25 @@ const Layout = () => {
       label: '生成报告',
     },
     {
-      key: '/settings/ai',
+      key: '/reports',
+      icon: <HistoryOutlined />,
+      label: '报告历史',
+    },
+    {
+      key: '/settings',
       icon: <SettingOutlined />,
-      label: 'AI配置',
+      label: '系统设置',
+      children: [
+        {
+          key: '/settings/ai',
+          label: 'AI配置',
+        },
+        {
+          key: '/settings/db',
+          icon: <DatabaseOutlined />,
+          label: '数据库连接',
+        },
+      ],
     },
   ];
 

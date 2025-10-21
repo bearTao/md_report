@@ -4,6 +4,7 @@ import type {
   GenerateReportResponse,
   Report,
   TaskStatus,
+  ReportListResponse,
 } from '../types';
 
 // 启动报告生成
@@ -40,6 +41,17 @@ export const downloadReport = async (reportId: string): Promise<void> => {
 // 获取任务状态
 export const getTaskStatus = async (taskId: string): Promise<TaskStatus> => {
   const response = await client.get<TaskStatus>(`/api/reports/tasks/${taskId}/status`);
+  return response.data;
+};
+
+// 获取报告历史列表
+export const getReportList = async (params?: {
+  page?: number;
+  page_size?: number;
+  status?: string;
+  template_id?: string;
+}): Promise<ReportListResponse> => {
+  const response = await client.get<ReportListResponse>('/api/reports/', { params });
   return response.data;
 };
 

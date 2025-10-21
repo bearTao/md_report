@@ -103,3 +103,29 @@ class AIProviderKey(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+class DBEngineType(str, enum.Enum):
+    """Database engine types"""
+    POSTGRESQL = "postgresql"
+    MYSQL = "mysql"
+    SQLSERVER = "sqlserver"
+    ORACLE = "oracle"
+
+
+class DBConnection(Base):
+    """Database connection configurations"""
+    __tablename__ = "db_connections"
+    
+    id = Column(String(50), primary_key=True)
+    name = Column(String(200), nullable=False, unique=True)
+    engine = Column(SQLEnum(DBEngineType), nullable=False)
+    host = Column(String(500), nullable=False)
+    port = Column(Integer, nullable=False)
+    database = Column(String(200), nullable=False)
+    username = Column(String(200), nullable=False)
+    password_ciphertext = Column(Text, nullable=False)
+    options_json = Column(JSON)  # Additional connection options
+    is_active = Column(String(10), default="true")  # Use string for boolean
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
