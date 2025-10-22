@@ -14,9 +14,12 @@ DATABASE_URL = os.getenv(
 
 # Create engine with appropriate settings
 engine_kwargs = {
-    "pool_pre_ping": True,  # Enable connection health checks
-    "pool_recycle": 3600,   # Recycle connections after 1 hour
-    "echo": False,          # Set to True for SQL debugging
+    "pool_pre_ping": True,      # Enable connection health checks
+    "pool_recycle": 3600,        # Recycle connections after 1 hour (MySQL's wait_timeout)
+    "pool_size": 5,              # Connection pool size (default 5, reasonable for small apps)
+    "max_overflow": 10,          # Max overflow connections (total max = pool_size + max_overflow)
+    "pool_timeout": 30,          # Timeout for getting connection from pool (seconds)
+    "echo": False,               # Set to True for SQL debugging
 }
 
 # Add SQLite-specific settings if using SQLite

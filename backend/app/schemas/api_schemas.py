@@ -232,3 +232,59 @@ class DBConnectionTestResponse(BaseModel):
     message: str
     details: Optional[Dict[str, Any]] = None
 
+
+# Task control schemas
+class TaskCancelRequest(BaseModel):
+    """Request to cancel a task"""
+    reason: Optional[str] = Field(None, description="Reason for cancellation")
+
+
+class TaskCancelResponse(BaseModel):
+    """Response for task cancellation"""
+    task_id: str
+    status: str
+    cancelled_at: datetime
+
+
+class VariableRetryResponse(BaseModel):
+    """Response for variable retry"""
+    task_id: str
+    variable_name: str
+    retry_status: str
+
+
+# Execution log schemas
+class ExecutionLogItem(BaseModel):
+    """Single execution log item"""
+    id: int
+    task_id: str
+    variable_name: Optional[str]
+    level: str
+    message: str
+    context: Optional[Dict[str, Any]]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ExecutionLogListResponse(BaseModel):
+    """List of execution logs"""
+    logs: List[ExecutionLogItem]
+    total: int
+
+
+# Template validation schemas
+class ValidationIssue(BaseModel):
+    """Single validation issue"""
+    level: str = Field(..., description="Issue level: error or warning")
+    category: str = Field(..., description="Issue category: syntax, metadata, dependency, schema")
+    message: str = Field(..., description="Detailed issue message")
+    location: Optional[str] = Field(None, description="Location of the issue")
+
+
+class TemplateValidationResponse(BaseModel):
+    """Template validation result"""
+    valid: bool
+    issues: List[ValidationIssue]
+

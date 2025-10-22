@@ -1,5 +1,5 @@
 """Core data models for variable execution"""
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 from enum import Enum
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,8 @@ class VariableSource(str, Enum):
     API = "api"
     AI_GENERATION = "ai_generation"
     SYSTEM = "system"
+    IMAGE = "image"
+    VISION_AI = "vision_ai"
 
 
 class VariableStatus(str, Enum):
@@ -72,6 +74,33 @@ class UiConfig(BaseModel):
     placeholder: Optional[str] = None
 
 
+class ImageConfig(BaseModel):
+    """Image variable configuration"""
+    endpoint: str  # API endpoint, supports variable interpolation
+    method: str = "GET"
+    headers: Optional[Dict[str, str]] = None
+    parameters: Optional[Dict[str, Any]] = None
+    output_format: Literal["base64", "url", "bytes"] = "base64"
+    multiple: bool = False  # Whether to fetch multiple images
+    timeout: Optional[int] = 30
+    
+    class Config:
+        extra = "forbid"
+
+
+class VisionAiConfig(BaseModel):
+    """Vision AI configuration"""
+    model: str = "gpt-4o"
+    image_source: str  # Name of the image variable to analyze
+    prompt_template: str  # Prompt template with variable interpolation
+    temperature: Optional[float] = 0.7
+    max_tokens: Optional[int] = 500
+    system_prompt: Optional[str] = None  # Optional system prompt
+    
+    class Config:
+        extra = "forbid"
+
+
 class VariableMetadata(BaseModel):
     """Variable metadata definition"""
     type: str  # string, number, boolean, array, object
@@ -88,6 +117,8 @@ class VariableMetadata(BaseModel):
     ai_config: Optional[AiConfig] = None
     system_config: Optional[SystemConfig] = None
     ui_config: Optional[UiConfig] = None
+    image_config: Optional[ImageConfig] = None
+    vision_ai_config: Optional[VisionAiConfig] = None
 
 
 class VariableExecutionResult(BaseModel):

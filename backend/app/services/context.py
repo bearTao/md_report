@@ -12,6 +12,9 @@ class ExecutionContext:
     Stores variable values and provides dependency resolution
     """
     
+    # Class-level cancellation flags storage
+    _cancellation_flags: Dict[str, bool] = {}
+    
     def __init__(self, task_id: str, template_id: str, 
                  user_inputs: Dict[str, Any], 
                  metadata: Dict[str, VariableMetadata]):
@@ -185,4 +188,25 @@ class ExecutionContext:
             "user_inputs": self.user_inputs,
             "variables": self.variables
         }
+    
+    # Task cancellation management methods
+    @classmethod
+    def set_cancellation_flag(cls, task_id: str):
+        """Set cancellation flag for a task"""
+        cls._cancellation_flags[task_id] = True
+    
+    @classmethod
+    def is_cancelled(cls, task_id: str) -> bool:
+        """Check if task is cancelled"""
+        return cls._cancellation_flags.get(task_id, False)
+    
+    @classmethod
+    def clear_cancellation_flag(cls, task_id: str):
+        """Clear cancellation flag for a task"""
+        if task_id in cls._cancellation_flags:
+            del cls._cancellation_flags[task_id]
+    
+    def is_task_cancelled(self) -> bool:
+        """Check if current task is cancelled"""
+        return self.is_cancelled(self.task_id)
 

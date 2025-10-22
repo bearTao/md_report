@@ -44,3 +44,20 @@ class AiGenerationError(VariableExecutionError):
     """AI generation error"""
     pass
 
+
+class TaskCancelledException(ExecutionError):
+    """Task was cancelled by user"""
+    def __init__(self, task_id: str, message: str = None):
+        self.task_id = task_id
+        super().__init__(message or f"Task {task_id} was cancelled")
+
+
+class ImageExecutionError(VariableExecutionError):
+    """Image execution error"""
+    pass
+
+
+class VisionAiExecutionError(VariableExecutionError):
+    """Vision AI execution error"""
+    pass
+

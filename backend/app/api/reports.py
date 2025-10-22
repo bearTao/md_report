@@ -224,28 +224,30 @@ async def execute_report_generation(
     template_content: str,
     metadata: Dict[str, Any],
     user_inputs: Dict[str, Any],
-    db_session: Session,
     openai_api_key: Optional[str] = None,
     openai_api_base: Optional[str] = None
 ):
     """Background task to execute report generation"""
     
-    # Update task status to running
-    task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
-    if task:
-        task.status = ReportStatus.RUNNING
-        task.started_at = datetime.utcnow()
-        db_session.commit()
-        
-        # Broadcast task started event
-        await ws_manager.broadcast_task_started(
-            task_id=task_id,
-            template_id=template_id,
-            queued_at=task.created_at,
-            started_at=task.started_at
-        )
+    # Create new database session for background task
+    from app.database import SessionLocal
+    db_session = SessionLocal()
     
     try:
+        # Update task status to running
+        task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
+        if task:
+            task.status = ReportStatus.RUNNING
+            task.started_at = datetime.utcnow()
+            db_session.commit()
+            
+            # Broadcast task started event
+            await ws_manager.broadcast_task_started(
+                task_id=task_id,
+                template_id=template_id,
+                queued_at=task.created_at,
+                started_at=task.started_at
+            )
         # Load database connections from database
         from app.models.db_models import DBConnection
         from app.connectors.database import db_connector
@@ -413,30 +415,42 @@ async def execute_report_generation(
         )
         
     except Exception as e:
-        # Mark task as failed
-        task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
-        duration_ms = None
-        if task:
-            task.status = ReportStatus.FAILED
-            task.finished_at = datetime.utcnow()
-            if task.started_at:
-                duration_ms = int((task.finished_at - task.started_at).total_seconds() * 1000)
-            db_session.commit()
-        
-        # Format detailed error information
-        error_info = _format_error_details(e)
-        
-        # Broadcast task failed event
-        await ws_manager.broadcast_task_failed(
-            task_id=task_id,
-            error=error_info,
-            summary={"duration_ms": duration_ms or 0}
-        )
-        
-        # Log error
-        print(f"Report generation failed for task {task_id}: {error_info['message']}")
+        # Log error first
+        print(f"Report generation failed for task {task_id}: {str(e)}")
         import traceback
         traceback.print_exc()
+        
+        try:
+            # Rollback failed transaction
+            db_session.rollback()
+            
+            # Mark task as failed
+            task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
+            duration_ms = None
+            if task:
+                task.status = ReportStatus.FAILED
+                task.finished_at = datetime.utcnow()
+                if task.started_at:
+                    duration_ms = int((task.finished_at - task.started_at).total_seconds() * 1000)
+                db_session.commit()
+            
+            # Format detailed error information
+            error_info = _format_error_details(e)
+            
+            # Broadcast task failed event
+            await ws_manager.broadcast_task_failed(
+                task_id=task_id,
+                error=error_info,
+                summary={"duration_ms": duration_ms or 0}
+            )
+        except Exception as commit_error:
+            print(f"Failed to update task status: {commit_error}")
+            traceback.print_exc()
+    
+    finally:
+        # Always close the session
+        db_session.close()
+        print(f"Database session closed for task {task_id}")
 
 
 @router.post("/generate", response_model=ReportGenerateResponse, status_code=202)
@@ -473,7 +487,6 @@ async def generate_report(
         template_content=template.template_content,
         metadata=template.metadata_json,
         user_inputs=request.inputs,
-        db_session=db,
         openai_api_key=openai_api_key,
         openai_api_base=openai_api_base
     )

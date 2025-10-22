@@ -22,6 +22,8 @@ class VariableSourceType(str, enum.Enum):
     API = "api"
     AI_GENERATION = "ai_generation"
     SYSTEM = "system"
+    IMAGE = "image"
+    VISION_AI = "vision_ai"
 
 
 class VariableStatusType(str, enum.Enum):
@@ -31,6 +33,15 @@ class VariableStatusType(str, enum.Enum):
     SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"
+    CANCELLED = "cancelled"
+
+
+class LogLevel(str, enum.Enum):
+    """Log level for execution logs"""
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
 
 
 class Template(Base):
@@ -128,4 +139,17 @@ class DBConnection(Base):
     is_active = Column(String(10), default="true")  # Use string for boolean
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ExecutionLog(Base):
+    """Execution logs for tasks and variables"""
+    __tablename__ = "execution_logs"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(String(50), nullable=False, index=True)
+    variable_name = Column(String(200), nullable=True, index=True)  # NULL for task-level logs
+    level = Column(SQLEnum(LogLevel), nullable=False, index=True)
+    message = Column(Text, nullable=False)
+    context_json = Column(JSON, nullable=True)  # Additional context information
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 

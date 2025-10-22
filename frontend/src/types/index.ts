@@ -47,8 +47,8 @@ export interface UpdateTemplateRequest {
 }
 
 // 变量元数据类型
-export type VariableSource = 'user_input' | 'sql' | 'api' | 'ai_generation' | 'system';
-export type VariableType = 'string' | 'number' | 'boolean' | 'object' | 'array';
+export type VariableSource = 'user_input' | 'sql' | 'api' | 'ai_generation' | 'system' | 'image' | 'vision_ai';
+export type VariableType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'image';
 
 export interface VariableMetadata {
   [key: string]: VariableConfig;
@@ -66,6 +66,8 @@ export interface VariableConfig {
   api_config?: APIConfig;
   ai_config?: AIConfig;
   system_config?: SystemConfig;
+  image_config?: ImageConfig;
+  vision_ai_config?: VisionAiConfig;
   schema?: any;
 }
 
@@ -103,6 +105,25 @@ export interface SystemFieldConfig {
   generator: 'datetime' | 'uuid' | 'constant';
   format?: string;
   value?: any;
+}
+
+export interface ImageConfig {
+  endpoint: string;
+  method?: 'GET' | 'POST';
+  headers?: Record<string, string>;
+  parameters?: Record<string, any>;
+  output_format?: 'base64' | 'url' | 'bytes';
+  multiple?: boolean;
+  timeout?: number;
+}
+
+export interface VisionAiConfig {
+  model: string;
+  image_source: string;
+  prompt_template: string;
+  system_prompt?: string;
+  temperature?: number;
+  max_tokens?: number;
 }
 
 // 报告相关类型

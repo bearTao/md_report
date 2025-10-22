@@ -13,6 +13,8 @@ from app.executors.system import SystemExecutor
 from app.executors.sql import SqlExecutor
 from app.executors.api import ApiExecutor
 from app.executors.ai import AiExecutor
+from app.executors.image import ImageExecutor
+from app.executors.vision_ai import VisionAiExecutor
 from app.core.exceptions import DependencyError
 
 
@@ -88,6 +90,12 @@ class ExecutionScheduler:
             return AiExecutor(var_name, metadata, context, 
                             openai_api_key=self.openai_api_key,
                             openai_api_base=self.openai_api_base)
+        elif source == VariableSource.IMAGE:
+            return ImageExecutor(var_name, metadata, context)
+        elif source == VariableSource.VISION_AI:
+            return VisionAiExecutor(var_name, metadata, context,
+                                   openai_api_key=self.openai_api_key,
+                                   openai_api_base=self.openai_api_base)
         else:
             raise ValueError(f"Unknown variable source: {source}")
             
