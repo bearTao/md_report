@@ -68,6 +68,7 @@ class GenerationTask(Base):
     started_at = Column(DateTime(timezone=True))
     finished_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    render_error = Column(JSON, nullable=True)  # 模板渲染错误信息
 
 
 class GenerationTaskVariable(Base):

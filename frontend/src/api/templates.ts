@@ -42,3 +42,19 @@ export const deleteTemplate = async (templateId: string): Promise<void> => {
   await client.delete(`/api/templates/${templateId}`);
 };
 
+// 校验模板
+export const validateTemplate = async (
+  templateId: string
+): Promise<{
+  valid: boolean;
+  issues: Array<{
+    level: string;
+    category: string;
+    message: string;
+    location: string | null;
+  }>;
+}> => {
+  const response = await client.post(`/api/templates/${templateId}/validate`);
+  return response.data;
+};
+

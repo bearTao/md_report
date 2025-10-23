@@ -1,5 +1,5 @@
 """Report generation and management API"""
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Response
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Response, Query
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 import uuid
@@ -9,13 +9,16 @@ from datetime import datetime
 from app.database import get_db
 from app.models.db_models import (
     Template, GenerationTask, Report, ReportStatus,
-    GenerationTaskVariable, VariableSourceType, VariableStatusType
+    GenerationTaskVariable, VariableSourceType, VariableStatusType,
+    ExecutionLog, LogLevel
 )
 from app.schemas.api_schemas import (
     ReportGenerateRequest, ReportGenerateResponse,
     ReportResponse, ReportStatusEnum,
     TaskStatusResponse, TaskVariableDetail, VariableStatusEnum,
-    ReportListResponse, ReportListItem
+    ReportListResponse, ReportListItem,
+    TaskCancelRequest, TaskCancelResponse, VariableRetryResponse,
+    ExecutionLogItem, ExecutionLogListResponse
 )
 from app.services.scheduler import ExecutionScheduler
 from app.services.context import ExecutionContext
@@ -369,8 +372,37 @@ async def execute_report_generation(
         results = await scheduler.execute_all(context, progress_callback)
         
         # Render template
-        all_variables = context.get_all_variables()
-        markdown_content = template_renderer.render(template_content, all_variables)
+        try:
+            all_variables = context.get_all_variables()
+            markdown_content = template_renderer.render(template_content, all_variables)
+        except TemplateRenderError as e:
+            # 渲染错误 - 保存到任务记录并广播
+            print(f"Template rendering failed for task {task_id}: {str(e)}")
+            
+            # 保存渲染错误到数据库
+            task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
+            if task:
+                task.render_error = {
+                    "error_type": "TemplateRenderError",
+                    "error_message": str(e),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                task.status = ReportStatus.FAILED
+                task.finished_at = datetime.utcnow()
+                db_session.commit()
+            
+            # 广播渲染错误事件
+            await ws_manager.broadcast_render_failed(
+                task_id=task_id,
+                error={
+                    "code": "TEMPLATE_RENDER_ERROR",
+                    "message": str(e),
+                    "details": "模板渲染失败，请检查模板语法"
+                }
+            )
+            
+            db_session.close()
+            return  # 提前返回
         
         # Extract title from user inputs or use first line of markdown
         title = user_inputs.get("report_title") or user_inputs.get("title")
@@ -456,7 +488,6 @@ async def execute_report_generation(
 @router.post("/generate", response_model=ReportGenerateResponse, status_code=202)
 async def generate_report(
     request: ReportGenerateRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """Start report generation task"""
@@ -479,17 +510,29 @@ async def generate_report(
     # Get AI config (api_key and api_base)
     openai_api_key, openai_api_base = get_ai_config(db)
     
-    # Start background task
-    background_tasks.add_task(
-        execute_report_generation,
-        task_id=task_id,
-        template_id=request.template_id,
-        template_content=template.template_content,
-        metadata=template.metadata_json,
-        user_inputs=request.inputs,
-        openai_api_key=openai_api_key,
-        openai_api_base=openai_api_base
+    # Start background task using asyncio.create_task for proper async execution
+    task = asyncio.create_task(
+        execute_report_generation(
+            task_id=task_id,
+            template_id=request.template_id,
+            template_content=template.template_content,
+            metadata=template.metadata_json,
+            user_inputs=request.inputs,
+            openai_api_key=openai_api_key,
+            openai_api_base=openai_api_base
+        )
     )
+    
+    # Add exception handler to catch any uncaught exceptions in the background task
+    def handle_task_exception(future: asyncio.Future):
+        try:
+            future.result()
+        except Exception as e:
+            print(f"UNCAUGHT EXCEPTION in background task {task_id}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    task.add_done_callback(handle_task_exception)
     
     return ReportGenerateResponse(
         task_id=task_id,
@@ -667,5 +710,410 @@ async def get_task_status(
         created_at=task.created_at,
         report_id=report.id if report else None,
         variables=variable_details
+    )
+
+
+@router.post("/tasks/{task_id}/cancel", response_model=TaskCancelResponse)
+async def cancel_task(
+    task_id: str,
+    request: Optional[TaskCancelRequest] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Cancel a running task
+    
+    Cancels a pending or running task. The task status will be updated to 'cancelled'
+    and all running variables will be stopped.
+    """
+    # Get task
+    task = db.query(GenerationTask).filter(GenerationTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Check if task can be cancelled
+    if task.status not in [ReportStatus.PENDING, ReportStatus.RUNNING]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot cancel task in status: {task.status.value}"
+        )
+    
+    # Set cancellation flag in execution context
+    ExecutionContext.set_cancellation_flag(task_id)
+    
+    # Update task status
+    task.status = ReportStatus.CANCELLED
+    task.finished_at = datetime.utcnow()
+    
+    # Update running variables to cancelled
+    running_vars = db.query(GenerationTaskVariable).filter(
+        GenerationTaskVariable.task_id == task_id,
+        GenerationTaskVariable.status == VariableStatusType.RUNNING
+    ).all()
+    
+    for var in running_vars:
+        var.status = VariableStatusType.CANCELLED
+        var.finished_at = datetime.utcnow()
+        if var.started_at:
+            var.duration_ms = int((var.finished_at - var.started_at).total_seconds() * 1000)
+    
+    db.commit()
+    
+    # Broadcast WebSocket event
+    await ws_manager.broadcast_to_task(
+        task_id,
+        {
+            "type": "task_cancelled",
+            "task_id": task_id,
+            "reason": request.reason if request else None,
+            "cancelled_at": task.finished_at.isoformat()
+        }
+    )
+    
+    return TaskCancelResponse(
+        task_id=task_id,
+        status="cancelled",
+        cancelled_at=task.finished_at
+    )
+
+
+@router.post("/tasks/{task_id}/variables/{variable_name}/retry", response_model=VariableRetryResponse)
+async def retry_variable(
+    task_id: str,
+    variable_name: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Retry a failed variable execution
+    
+    Retries execution of a single failed or cancelled variable.
+    Other successfully executed variables will not be re-executed.
+    """
+    # Get task
+    task = db.query(GenerationTask).filter(GenerationTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Get variable
+    var = db.query(GenerationTaskVariable).filter(
+        GenerationTaskVariable.task_id == task_id,
+        GenerationTaskVariable.variable_name == variable_name
+    ).first()
+    
+    if not var:
+        raise HTTPException(status_code=404, detail="Variable not found")
+    
+    # Check if variable can be retried
+    if var.status not in [VariableStatusType.FAILED, VariableStatusType.CANCELLED]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot retry variable in status: {var.status.value}"
+        )
+    
+    # Reset variable status
+    var.status = VariableStatusType.PENDING
+    var.started_at = None
+    var.finished_at = None
+    var.duration_ms = None
+    var.error_code = None
+    var.error_message = None
+    var.result_preview = None
+    db.commit()
+    
+    # Trigger retry in background
+    background_tasks.add_task(
+        retry_variable_execution,
+        task_id=task_id,
+        variable_name=variable_name
+    )
+    
+    # Broadcast WebSocket event
+    await ws_manager.broadcast_to_task(
+        task_id,
+        {
+            "type": "variable_retry_started",
+            "task_id": task_id,
+            "variable_name": variable_name
+        }
+    )
+    
+    return VariableRetryResponse(
+        task_id=task_id,
+        variable_name=variable_name,
+        retry_status="pending"
+    )
+
+
+async def retry_variable_execution(task_id: str, variable_name: str):
+    """
+    Retry execution of a single variable
+    
+    This function is called as a background task to retry variable execution.
+    It reuses the results of successfully executed variables and only re-executes
+    the specified variable.
+    """
+    from app.database import SessionLocal
+    
+    db_session = SessionLocal()
+    
+    try:
+        # Get task and template
+        task = db_session.query(GenerationTask).filter_by(id=task_id).first()
+        if not task:
+            print(f"Task {task_id} not found for retry")
+            return
+        
+        template = db_session.query(Template).filter_by(id=task.template_id).first()
+        if not template:
+            print(f"Template {task.template_id} not found for retry")
+            return
+        
+        # Parse metadata
+        metadata_dict = template.metadata_json if isinstance(template.metadata_json, dict) else {}
+        metadata = {
+            name: VariableMetadata(**config) 
+            for name, config in metadata_dict.items()
+        }
+        
+        variable_meta = metadata.get(variable_name)
+        if not variable_meta:
+            print(f"Variable {variable_name} not found in metadata")
+            return
+        
+        # Build context with existing successful variables
+        context = ExecutionContext(
+            task_id=task_id,
+            template_id=task.template_id,
+            user_inputs=task.inputs_json,
+            metadata=metadata
+        )
+        
+        # Load successful variables into context
+        successful_vars = db_session.query(GenerationTaskVariable).filter(
+            GenerationTaskVariable.task_id == task_id,
+            GenerationTaskVariable.status == VariableStatusType.SUCCESS
+        ).all()
+        
+        for var in successful_vars:
+            if var.result_preview is not None:
+                context.set_variable(var.variable_name, var.result_preview)
+        
+        # Get AI config
+        openai_api_key, openai_api_base = get_ai_config(db_session)
+        
+        # Create executor
+        scheduler = ExecutionScheduler(
+            openai_api_key=openai_api_key,
+            openai_api_base=openai_api_base
+        )
+        executor = scheduler.create_executor(variable_name, variable_meta, context)
+        
+        # Update variable status to running
+        var_record = db_session.query(GenerationTaskVariable).filter_by(
+            task_id=task_id,
+            variable_name=variable_name
+        ).first()
+        
+        var_record.status = VariableStatusType.RUNNING
+        var_record.started_at = datetime.utcnow()
+        db_session.commit()
+        
+        # Broadcast variable started
+        await ws_manager.broadcast_variable_started(
+            task_id=task_id,
+            variable_name=variable_name,
+            source=variable_meta.source.value
+        )
+        
+        # Execute variable
+        result = await executor.execute()
+        
+        # Update result
+        var_record.status = VariableStatusType(result.status.value)
+        var_record.finished_at = datetime.utcnow()
+        var_record.duration_ms = result.duration_ms
+        
+        if result.status == VariableStatus.SUCCESS:
+            var_record.result_preview = result.value if isinstance(result.value, (dict, list)) else None
+            db_session.commit()
+            
+            # Broadcast variable completed
+            await ws_manager.broadcast_variable_completed(
+                task_id=task_id,
+                variable_name=variable_name,
+                duration_ms=result.duration_ms
+            )
+            
+            # Check if all variables are now successful
+            all_vars = db_session.query(GenerationTaskVariable).filter_by(task_id=task_id).all()
+            all_success = all(v.status == VariableStatusType.SUCCESS for v in all_vars)
+            
+            if all_success:
+                # Continue with report generation
+                print(f"All variables successful after retry, continuing with report generation for task {task_id}")
+                # Re-trigger report generation
+                await continue_report_generation(task_id, context, db_session)
+        else:
+            var_record.error_message = result.error
+            db_session.commit()
+            
+            # Broadcast variable failed
+            await ws_manager.broadcast_variable_failed(
+                task_id=task_id,
+                variable_name=variable_name,
+                error_message=result.error
+            )
+    
+    except Exception as e:
+        print(f"Error during variable retry: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Update variable to failed
+        try:
+            var_record = db_session.query(GenerationTaskVariable).filter_by(
+                task_id=task_id,
+                variable_name=variable_name
+            ).first()
+            if var_record:
+                var_record.status = VariableStatusType.FAILED
+                var_record.error_message = str(e)
+                var_record.finished_at = datetime.utcnow()
+                db_session.commit()
+                
+                await ws_manager.broadcast_variable_failed(
+                    task_id=task_id,
+                    variable_name=variable_name,
+                    error_message=str(e)
+                )
+        except Exception as commit_error:
+            print(f"Failed to update variable status: {commit_error}")
+    
+    finally:
+        db_session.close()
+
+
+async def continue_report_generation(task_id: str, context: ExecutionContext, db_session: Session):
+    """
+    Continue report generation after successful variable retry
+    
+    This function continues the report generation process from where it left off
+    after a variable retry succeeds.
+    """
+    try:
+        # Get task and template
+        task = db_session.query(GenerationTask).filter_by(id=task_id).first()
+        template = db_session.query(Template).filter_by(id=task.template_id).first()
+        
+        # Render template
+        markdown_content = template_renderer.render(
+            template_content=template.template_content,
+            variables=context.get_all_variables()
+        )
+        
+        # Calculate duration
+        duration_ms = None
+        if task.started_at:
+            duration_ms = int((datetime.utcnow() - task.started_at).total_seconds() * 1000)
+        
+        # Create report
+        report_id = f"report_{uuid.uuid4().hex[:12]}"
+        report = Report(
+            id=report_id,
+            template_id=task.template_id,
+            task_id=task_id,
+            title=f"Report for {template.name}",
+            status=ReportStatus.SUCCESS,
+            markdown_content=markdown_content,
+            cost_usd=0,
+            duration_ms=duration_ms
+        )
+        db_session.add(report)
+        
+        # Update task status
+        task.status = ReportStatus.SUCCESS
+        task.finished_at = datetime.utcnow()
+        db_session.commit()
+        
+        # Broadcast completion
+        await ws_manager.broadcast_task_completed(
+            task_id=task_id,
+            report_id=report_id,
+            summary={
+                "duration_ms": duration_ms,
+                "ai_cost_usd": 0
+            }
+        )
+    
+    except Exception as e:
+        print(f"Error continuing report generation: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Mark task as failed
+        task.status = ReportStatus.FAILED
+        task.finished_at = datetime.utcnow()
+        db_session.commit()
+        
+        await ws_manager.broadcast_task_failed(
+            task_id=task_id,
+            error={"message": str(e)},
+            summary={}
+        )
+
+
+@router.get("/tasks/{task_id}/logs", response_model=ExecutionLogListResponse)
+async def get_task_logs(
+    task_id: str,
+    level: Optional[str] = Query(None, description="Filter by log level (DEBUG, INFO, WARNING, ERROR)"),
+    variable_name: Optional[str] = Query(None, description="Filter by variable name"),
+    limit: int = Query(100, le=1000, description="Maximum number of logs to return"),
+    offset: int = Query(0, ge=0, description="Number of logs to skip"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get execution logs for a task
+    
+    Returns logs for the specified task, with optional filtering by level and variable name.
+    Logs are ordered by creation time (oldest first).
+    """
+    # Build query
+    query = db.query(ExecutionLog).filter(ExecutionLog.task_id == task_id)
+    
+    # Apply filters
+    if level:
+        level_upper = level.upper()
+        if level_upper in ["DEBUG", "INFO", "WARNING", "ERROR"]:
+            query = query.filter(ExecutionLog.level == LogLevel[level_upper])
+    
+    if variable_name:
+        query = query.filter(ExecutionLog.variable_name == variable_name)
+    
+    # Get total count
+    total = query.count()
+    
+    # Apply pagination and ordering
+    logs = query.order_by(ExecutionLog.created_at.asc())\
+               .offset(offset)\
+               .limit(limit)\
+               .all()
+    
+    # Convert to response format
+    log_items = [
+        ExecutionLogItem(
+            id=log.id,
+            task_id=log.task_id,
+            variable_name=log.variable_name,
+            level=log.level.value,
+            message=log.message,
+            context=log.context_json,
+            created_at=log.created_at
+        )
+        for log in logs
+    ]
+    
+    return ExecutionLogListResponse(
+        logs=log_items,
+        total=total
     )
 

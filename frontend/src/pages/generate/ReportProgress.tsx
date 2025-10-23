@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   Card,
   Progress,
@@ -13,6 +13,8 @@ import {
   Alert,
   Spin,
   Badge,
+  message,
+  Popconfirm,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -21,9 +23,12 @@ import {
   ClockCircleOutlined,
   EyeOutlined,
   WifiOutlined,
+  StopOutlined,
+  ReloadOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { getTaskStatus } from '../../api';
+import { getTaskStatus, cancelTask, retryVariable } from '../../api';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import type { TaskVariableDetail, WSEvent } from '../../types';
 
@@ -54,12 +59,52 @@ const ReportProgress = () => {
         refetch();
       }
       
-      // 处理任务失败或变量更新事件，刷新状态
-      if (['task_failed', 'variable_completed', 'variable_failed'].includes(event.type)) {
+      // 处理渲染失败事件
+      if (event.type === 'render_failed') {
+        message.error('模板渲染失败');
+        refetch();
+      }
+      
+      // 处理任务失败、取消或变量更新事件，刷新状态
+      if (['task_failed', 'task_cancelled', 'variable_completed', 'variable_failed', 'variable_retry_started'].includes(event.type)) {
         refetch();
       }
     },
   });
+
+  // 取消任务 mutation
+  const cancelTaskMutation = useMutation({
+    mutationFn: () => cancelTask(taskId!),
+    onSuccess: () => {
+      message.success('任务已取消');
+      refetch();
+    },
+    onError: (error: any) => {
+      message.error(`取消任务失败: ${error.response?.data?.detail || error.message}`);
+    },
+  });
+
+  // 重试变量 mutation
+  const retryVariableMutation = useMutation({
+    mutationFn: (variableName: string) => retryVariable(taskId!, variableName),
+    onSuccess: () => {
+      message.success('变量重试已开始');
+      refetch();
+    },
+    onError: (error: any) => {
+      message.error(`重试失败: ${error.response?.data?.detail || error.message}`);
+    },
+  });
+
+  // 处理取消任务
+  const handleCancelTask = () => {
+    cancelTaskMutation.mutate();
+  };
+
+  // 处理重试变量
+  const handleRetryVariable = (variableName: string) => {
+    retryVariableMutation.mutate(variableName);
+  };
 
   // 计算进度
   const getProgress = () => {
@@ -215,6 +260,45 @@ const ReportProgress = () => {
               showIcon
             />
           )}
+
+          {taskStatus.status === 'cancelled' && (
+            <Alert
+              message="任务已取消"
+              description="任务已被用户取消"
+              type="warning"
+              showIcon
+            />
+          )}
+
+          {/* 操作按钮区域 */}
+          <Space>
+            {/* 取消任务按钮 */}
+            {(taskStatus.status === 'pending' || taskStatus.status === 'running') && (
+              <Popconfirm
+                title="确定要取消此任务吗？"
+                description="取消后任务将无法继续执行"
+                onConfirm={handleCancelTask}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button
+                  danger
+                  icon={<StopOutlined />}
+                  loading={cancelTaskMutation.isPending}
+                >
+                  取消任务
+                </Button>
+              </Popconfirm>
+            )}
+
+            {/* 查看日志按钮 */}
+            <Button
+              icon={<FileTextOutlined />}
+              onClick={() => navigate(`/logs/${taskId}`)}
+            >
+              查看日志
+            </Button>
+          </Space>
         </Space>
       </Card>
 
@@ -255,7 +339,21 @@ const ReportProgress = () => {
                         {variable.source}
                       </Descriptions.Item>
                       <Descriptions.Item label="状态">
-                        {getStatusTag(variable.status)}
+                        <Space>
+                          {getStatusTag(variable.status)}
+                          {/* 重试按钮 */}
+                          {variable.status === 'failed' && (
+                            <Button
+                              type="link"
+                              size="small"
+                              icon={<ReloadOutlined />}
+                              onClick={() => handleRetryVariable(variable.variable_name)}
+                              loading={retryVariableMutation.isPending}
+                            >
+                              重试
+                            </Button>
+                          )}
+                        </Space>
                       </Descriptions.Item>
                       <Descriptions.Item label="开始时间">
                         {variable.started_at
@@ -295,6 +393,40 @@ const ReportProgress = () => {
                 </Collapse>
               </Timeline.Item>
             ))}
+            
+            {/* 渲染日志 */}
+            {taskStatus.render_error && (
+              <Timeline.Item color="red" dot={<CloseCircleOutlined />}>
+                <div>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      <strong>模板渲染</strong>
+                      <Tag color="red">失败</Tag>
+                    </Space>
+                    <div style={{ marginTop: 8, color: '#ff4d4f' }}>
+                      错误: {taskStatus.render_error.error_message}
+                    </div>
+                    {taskStatus.render_error.timestamp && (
+                      <div style={{ color: '#999', fontSize: '12px' }}>
+                        时间: {dayjs(taskStatus.render_error.timestamp).format('YYYY-MM-DD HH:mm:ss')}
+                      </div>
+                    )}
+                  </Space>
+                </div>
+              </Timeline.Item>
+            )}
+            
+            {/* 渲染成功提示 */}
+            {isCompleted && !taskStatus.render_error && taskStatus.variables.length > 0 && (
+              <Timeline.Item color="green" dot={<CheckCircleOutlined />}>
+                <div>
+                  <Space>
+                    <strong>模板渲染</strong>
+                    <Tag color="green">成功</Tag>
+                  </Space>
+                </div>
+              </Timeline.Item>
+            )}
           </Timeline>
         )}
       </Card>

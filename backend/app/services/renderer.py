@@ -2,6 +2,7 @@
 from typing import Dict, Any
 from jinja2 import Environment, BaseLoader, TemplateError
 from jinja2.sandbox import SandboxedEnvironment
+from jinja2 import tests as jinja2_tests
 from app.core.exceptions import TemplateRenderError
 
 
@@ -18,6 +19,14 @@ class TemplateRenderer:
             lstrip_blocks=True
         )
         
+        # Register all Jinja2 built-in tests for full compatibility
+        # This includes: equalto, defined, undefined, etc.
+        self.env.tests.update(jinja2_tests.TESTS)
+        
+        # Add custom tests for regex matching (removed in Jinja2 3.x)
+        self.env.tests['search'] = self._test_search
+        self.env.tests['match'] = self._test_match
+        
         # Register custom filters (P1, basic ones for now)
         self.env.filters['json'] = self._json_filter
         
@@ -25,6 +34,18 @@ class TemplateRenderer:
         """Convert value to JSON string"""
         import json
         return json.dumps(value, indent=indent, ensure_ascii=False)
+    
+    def _test_search(self, value, pattern, ignorecase=False):
+        """Test if value contains pattern (regex search)"""
+        import re
+        flags = re.IGNORECASE if ignorecase else 0
+        return bool(re.search(pattern, str(value), flags))
+    
+    def _test_match(self, value, pattern, ignorecase=False):
+        """Test if value matches pattern from start (regex match)"""
+        import re
+        flags = re.IGNORECASE if ignorecase else 0
+        return bool(re.match(pattern, str(value), flags))
         
     def render(self, template_content: str, variables: Dict[str, Any]) -> str:
         """

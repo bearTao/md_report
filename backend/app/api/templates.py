@@ -9,7 +9,8 @@ from app.database import get_db
 from app.models.db_models import Template
 from app.schemas.api_schemas import (
     TemplateCreate, TemplateUpdate, TemplateResponse,
-    TemplateListItem, TemplateListResponse
+    TemplateListItem, TemplateListResponse,
+    TemplateValidationResponse
 )
 from app.services.renderer import template_renderer
 
@@ -172,4 +173,68 @@ async def delete_template(
     db.commit()
     
     return None
+
+
+@router.post("/{template_id}/validate", response_model=TemplateValidationResponse)
+async def validate_template(
+    template_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Validate template and metadata
+    
+    Performs comprehensive validation including:
+    - Jinja2 syntax check
+    - Variable reference validation
+    - Metadata structure validation
+    - Dependency graph validation (cycle detection)
+    - Schema format validation for AI variables
+    
+    Returns validation result with list of issues (errors and warnings).
+    Template is considered valid if there are no errors (warnings are acceptable).
+    """
+    from app.services.template_validator import template_validator
+    
+    # Get template
+    template = db.query(Template).filter(Template.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    # Parse metadata
+    try:
+        if isinstance(template.metadata_json, str):
+            metadata = yaml.safe_load(template.metadata_json)
+        elif isinstance(template.metadata_json, dict):
+            metadata = template.metadata_json
+        else:
+            return TemplateValidationResponse(
+                valid=False,
+                issues=[{
+                    "level": "error",
+                    "category": "metadata",
+                    "message": "Invalid metadata format: must be a dictionary",
+                    "location": None
+                }]
+            )
+    except Exception as e:
+        return TemplateValidationResponse(
+            valid=False,
+            issues=[{
+                "level": "error",
+                "category": "metadata",
+                "message": f"Failed to parse metadata: {str(e)}",
+                "location": None
+            }]
+        )
+    
+    # Perform validation
+    result = template_validator.validate_template(
+        template.template_content,
+        metadata
+    )
+    
+    return TemplateValidationResponse(
+        valid=result["valid"],
+        issues=result["issues"]
+    )
 

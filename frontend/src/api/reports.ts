@@ -55,3 +55,51 @@ export const getReportList = async (params?: {
   return response.data;
 };
 
+// 取消任务
+export const cancelTask = async (
+  taskId: string,
+  reason?: string
+): Promise<{ task_id: string; status: string; cancelled_at: string }> => {
+  const response = await client.post(`/api/reports/tasks/${taskId}/cancel`, {
+    reason,
+  });
+  return response.data;
+};
+
+// 重试变量
+export const retryVariable = async (
+  taskId: string,
+  variableName: string
+): Promise<{ task_id: string; variable_name: string; retry_status: string }> => {
+  const response = await client.post(
+    `/api/reports/tasks/${taskId}/variables/${variableName}/retry`
+  );
+  return response.data;
+};
+
+// 获取执行日志
+export const getTaskLogs = async (params: {
+  taskId: string;
+  level?: string;
+  variable_name?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{
+  logs: Array<{
+    id: number;
+    task_id: string;
+    variable_name: string | null;
+    level: string;
+    message: string;
+    context: any;
+    created_at: string;
+  }>;
+  total: number;
+}> => {
+  const { taskId, ...queryParams } = params;
+  const response = await client.get(`/api/reports/tasks/${taskId}/logs`, {
+    params: queryParams,
+  });
+  return response.data;
+};
+

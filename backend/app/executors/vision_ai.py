@@ -58,8 +58,12 @@ class VisionAiExecutor(BaseVariableExecutor):
             logger.info(f"[{self.variable_name}] Extracted {len(image_urls)} image URL(s)")
             logger.info(f"[{self.variable_name}] Image URLs: {image_urls}")
             
-            # 3. 插值提示词模板
-            prompt_text = self.context.interpolate_string(vision_config.prompt_template)
+            # 3. 渲染提示词模板（使用 Jinja2，支持完整语法）
+            from app.services.renderer import template_renderer
+            prompt_text = template_renderer.render(
+                vision_config.prompt_template,
+                self.context.get_all_variables()
+            )
             logger.debug(f"[{self.variable_name}] Prompt: {prompt_text[:100]}...")
             
             # 4. 调用视觉模型

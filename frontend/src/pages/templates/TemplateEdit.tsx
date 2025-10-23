@@ -10,12 +10,24 @@ import {
   message,
   Spin,
   Alert,
+  Modal,
+  Tag,
+  List,
+  Typography,
 } from 'antd';
-import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import {
+  SaveOutlined,
+  ArrowLeftOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import yaml from 'js-yaml';
-import { getTemplate, createTemplate, updateTemplate } from '../../api';
+import { getTemplate, createTemplate, updateTemplate, validateTemplate } from '../../api';
 import type { VariableMetadata } from '../../types';
+
+const { Text } = Typography;
 
 const { TextArea } = Input;
 
@@ -29,6 +41,8 @@ const TemplateEdit = () => {
   const [metadataYaml, setMetadataYaml] = useState('');
   const [yamlError, setYamlError] = useState<string | null>(null);
   const [editorReady, setEditorReady] = useState(false);
+  const [validationModalVisible, setValidationModalVisible] = useState(false);
+  const [validationResult, setValidationResult] = useState<any>(null);
 
   // 查询模板详情
   const { data: template, isLoading, error, isError } = useQuery({
@@ -59,6 +73,24 @@ const TemplateEdit = () => {
     onSuccess: () => {
       message.success('模板更新成功');
       navigate('/templates');
+    },
+  });
+
+  // 校验模板
+  const validateMutation = useMutation({
+    mutationFn: validateTemplate,
+    onSuccess: (data) => {
+      setValidationResult(data);
+      setValidationModalVisible(true);
+      if (data.valid) {
+        message.success('模板校验通过');
+      } else {
+        const errorCount = data.issues.filter((i: any) => i.level === 'error').length;
+        message.warning(`发现 ${errorCount} 个错误，请查看详情`);
+      }
+    },
+    onError: (error: any) => {
+      message.error(`校验失败: ${error.response?.data?.detail || error.message}`);
     },
   });
 
@@ -266,12 +298,77 @@ content:
             >
               保存模板
             </Button>
+            {!isNew && (
+              <Button
+                icon={<CheckCircleOutlined />}
+                onClick={() => validateMutation.mutate(templateId!)}
+                loading={validateMutation.isPending}
+              >
+                校验模板
+              </Button>
+            )}
             <Button onClick={() => navigate('/templates')}>
               取消
             </Button>
           </Space>
         </Form.Item>
       </Form>
+
+      {/* Validation Result Modal */}
+      <Modal
+        title="模板校验结果"
+        open={validationModalVisible}
+        onCancel={() => setValidationModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setValidationModalVisible(false)}>
+            关闭
+          </Button>,
+        ]}
+        width={800}
+      >
+        {validationResult && (
+          <Space direction="vertical" style={{ width: '100%' }}>
+            {/* Status */}
+            <Alert
+              message={validationResult.valid ? '校验通过' : '校验失败'}
+              description={
+                validationResult.valid
+                  ? '模板语法和结构正确'
+                  : `发现 ${validationResult.issues.filter((i: any) => i.level === 'error').length} 个错误, ${validationResult.issues.filter((i: any) => i.level === 'warning').length} 个警告`
+              }
+              type={validationResult.valid ? 'success' : 'error'}
+              showIcon
+            />
+
+            {/* Issues List */}
+            {validationResult.issues.length > 0 && (
+              <List
+                dataSource={validationResult.issues}
+                renderItem={(issue: any) => (
+                  <List.Item>
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      <Space>
+                        {issue.level === 'error' ? (
+                          <Tag color="red" icon={<ExclamationCircleOutlined />}>
+                            错误
+                          </Tag>
+                        ) : (
+                          <Tag color="orange" icon={<WarningOutlined />}>
+                            警告
+                          </Tag>
+                        )}
+                        <Tag color="blue">{issue.category}</Tag>
+                        {issue.location && <Tag>{issue.location}</Tag>}
+                      </Space>
+                      <Text>{issue.message}</Text>
+                    </Space>
+                  </List.Item>
+                )}
+              />
+            )}
+          </Space>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -7,9 +7,8 @@ from app.executors.base import BaseVariableExecutor
 from app.core.exceptions import AiGenerationError
 
 # LangChain imports
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
 from langchain_openai import ChatOpenAI
+from langchain.schema.messages import SystemMessage, HumanMessage
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +47,9 @@ class AiExecutor(BaseVariableExecutor):
         config = self.metadata.ai_config
         logger.info(f"📝 AI配置: model={config.model}, temperature={config.temperature}")
         
-        # Interpolate prompt template with dependencies
+        # Render prompt template with Jinja2 (supports full syntax)
         try:
-            logger.debug(f"🔄 开始插值提示词模板")
+            logger.debug(f"🔄 开始渲染提示词模板")
             logger.debug(f"提示词模板:\n{config.prompt_template}")
             logger.debug(f"依赖变量: {self.metadata.dependencies}")
             
@@ -60,14 +59,19 @@ class AiExecutor(BaseVariableExecutor):
                     dep_value = self.context.get_variable(dep)
                     logger.debug(f"依赖变量 '{dep}' 的值: {str(dep_value)[:200]}...")
             
-            prompt_text = self.context.interpolate_string(config.prompt_template)
-            logger.debug(f"✅ 提示词插值成功，长度: {len(prompt_text)} 字符")
+            # 使用 Jinja2 渲染 prompt_template（支持完整语法：循环、条件、过滤器等）
+            from app.services.renderer import template_renderer
+            prompt_text = template_renderer.render(
+                config.prompt_template, 
+                self.context.get_all_variables()
+            )
+            logger.debug(f"✅ 提示词渲染成功，长度: {len(prompt_text)} 字符")
             logger.info(f"📝 最终提示词预览:\n{'-'*60}\n{prompt_text[:500]}...\n{'-'*60}")
         except Exception as e:
-            logger.error(f"❌ 提示词插值失败: {str(e)}", exc_info=True)
+            logger.error(f"❌ 提示词渲染失败: {str(e)}", exc_info=True)
             raise AiGenerationError(
                 self.variable_name,
-                f"Failed to interpolate prompt: {str(e)}",
+                f"Failed to render prompt template: {str(e)}",
                 e
             )
         
@@ -93,10 +97,7 @@ class AiExecutor(BaseVariableExecutor):
             llm = ChatOpenAI(**llm_kwargs)
             logger.info(f"✅ LLM实例创建成功")
             
-            # 2. Create output parser with custom preprocessing
-            parser = JsonOutputParser()
-            
-            # 3. Add schema instructions to prompt if schema is provided
+            # 2. Add schema instructions to prompt if schema is provided
             if self.metadata.schema:
                 # 生成简化的schema描述，避免JSON格式被Jinja2解析
                 schema_desc = self._generate_schema_description(self.metadata.schema)
@@ -116,31 +117,39 @@ class AiExecutor(BaseVariableExecutor):
 
 请以JSON格式返回结果。确保JSON格式完全正确，每个字段后都有逗号（最后一个除外）。"""
             
-            # 4. Create prompt template
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "你是一个专业的数据分析助手，擅长生成结构化的JSON数据。请直接返回纯JSON格式，不要使用markdown代码块（不要使用```json```），不要添加任何解释性文字。"),
-                ("human", full_prompt)
-            ])
+            # 4. Create messages directly (avoid ChatPromptTemplate variable interpolation)
+            messages = [
+                SystemMessage(content="你是一个专业的数据分析助手，擅长生成结构化的JSON数据。请直接返回纯JSON格式，不要使用markdown代码块（不要使用```json```），不要添加任何解释性文字。"),
+                HumanMessage(content=full_prompt)
+            ]
             
-            # 5. Create chain: prompt | llm
-            logger.info(f"⛓️  创建LangChain链...")
-            chain = prompt | llm
-            
-            # 6. Invoke chain and get raw output
+            # 5. Invoke LLM directly with messages
             logger.info(f"🚀 调用AI模型生成内容...")
             logger.info(f"⏳ 请等待AI响应（可能需要10-60秒）...")
-            logger.debug(f"调用参数: 空字典（提示词已在prompt中）")
+            logger.debug(f"消息数量: {len(messages)}")
             
             import time
+            import asyncio
             start_time = time.time()
             
             try:
-                raw_output = await chain.ainvoke({})
+                # 设置超时时间：120秒（2分钟）
+                raw_output = await asyncio.wait_for(
+                    llm.ainvoke(messages),
+                    timeout=120.0
+                )
                 elapsed = time.time() - start_time
                 
                 logger.info(f"✅ AI响应完成，耗时: {elapsed:.2f}秒")
                 logger.debug(f"响应对象类型: {type(raw_output)}")
                 
+            except asyncio.TimeoutError:
+                elapsed = time.time() - start_time
+                logger.error(f"❌ AI API调用超时（120秒），耗时: {elapsed:.2f}秒")
+                raise AiGenerationError(
+                    self.variable_name,
+                    f"AI API call timed out after 120 seconds"
+                )
             except Exception as api_error:
                 elapsed = time.time() - start_time
                 logger.error(f"❌ AI API调用失败，耗时: {elapsed:.2f}秒")

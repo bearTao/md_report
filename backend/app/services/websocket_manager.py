@@ -14,6 +14,7 @@ class WSEventType(str, Enum):
     TASK_STARTED = "task_started"
     TASK_COMPLETED = "task_completed"
     TASK_FAILED = "task_failed"
+    RENDER_FAILED = "render_failed"
     VARIABLE_STARTED = "variable_started"
     VARIABLE_PROGRESS = "variable_progress"
     VARIABLE_COMPLETED = "variable_completed"
@@ -95,6 +96,12 @@ class WebSocketManager:
         await self.send_event(task_id, WSEventType.TASK_FAILED, {
             "error": error,
             "summary": summary
+        })
+    
+    async def broadcast_render_failed(self, task_id: str, error: Dict[str, Any]):
+        """Broadcast template render failure"""
+        await self.send_event(task_id, WSEventType.RENDER_FAILED, {
+            "error": error
         })
     
     async def broadcast_variable_started(
