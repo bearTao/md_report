@@ -23,9 +23,14 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
+import loader from '@monaco-editor/loader';
+import * as monaco from 'monaco-editor';
 import yaml from 'js-yaml';
 import { getTemplate, createTemplate, updateTemplate, validateTemplate } from '../../api';
 import type { VariableMetadata } from '../../types';
+
+// 配置Monaco从本地npm包加载，而不是从CDN（支持离线环境）
+loader.config({ monaco });
 
 const { Text } = Typography;
 
