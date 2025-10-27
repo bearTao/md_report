@@ -135,3 +135,32 @@ code {
   background-color: #e1e4e8;
   border: 0;
 }
+
+/* 任务列表样式 */
+.markdown-body input[type="checkbox"] {
+  margin-right: 0.5em;
+}
+
+.markdown-body li input[type="checkbox"] {
+  margin-right: 0.5em;
+  margin-left: -1.5em;
+}
+
+/* 删除线样式 */
+.markdown-body del {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* 表格响应式容器 */
+.markdown-body table {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .markdown-body table {
+    font-size: 0.9em;
+  }
+}

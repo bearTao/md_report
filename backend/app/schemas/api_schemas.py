@@ -1,6 +1,6 @@
 """API request/response schemas"""
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
 from enum import Enum
 
@@ -121,6 +121,7 @@ class VariableStatusEnum(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"
+    CANCELLED = "cancelled"
 
 
 class TaskVariableDetail(BaseModel):
@@ -131,7 +132,9 @@ class TaskVariableDetail(BaseModel):
     finished_at: Optional[datetime]
     duration_ms: Optional[int]
     error_message: Optional[str]
-    result_preview: Optional[Dict[str, Any]]
+    # Allow dict, list, or primitive types for result preview
+    # This supports various variable types (objects, arrays, strings, etc.)
+    result_preview: Optional[Union[Dict[str, Any], List[Any], str, int, float, bool]]
     
     class Config:
         from_attributes = True

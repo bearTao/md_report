@@ -92,7 +92,15 @@ const ReportProgress = () => {
       refetch();
     },
     onError: (error: any) => {
-      message.error(`重试失败: ${error.response?.data?.detail || error.message}`);
+      const errMsg = error.response?.data?.detail || error.message;
+      // 友好的错误提示
+      if (errMsg.includes('status')) {
+        message.error('该变量正在执行中或已完成，无法重试');
+      } else if (errMsg.includes('not found')) {
+        message.error('变量不存在，请刷新页面重试');
+      } else {
+        message.error(`重试失败: ${errMsg}`);
+      }
     },
   });
 
@@ -101,8 +109,17 @@ const ReportProgress = () => {
     cancelTaskMutation.mutate();
   };
 
+  // 检查变量是否可以重试
+  const canRetry = (status: string) => {
+    return status === 'failed' || status === 'cancelled';
+  };
+
   // 处理重试变量
-  const handleRetryVariable = (variableName: string) => {
+  const handleRetryVariable = (variableName: string, status: string) => {
+    if (!canRetry(status)) {
+      message.warning('只有失败或已取消的变量才能重试');
+      return;
+    }
     retryVariableMutation.mutate(variableName);
   };
 
@@ -135,12 +152,13 @@ const ReportProgress = () => {
 
   // 获取状态标签
   const getStatusTag = (status: string) => {
-    const statusMap: Record<string, { color: string; text: string }> = {
+    const statusMap: Record<string, { color: string; text: string; icon?: React.ReactNode }> = {
       pending: { color: 'default', text: '等待中' },
       running: { color: 'processing', text: '执行中' },
       success: { color: 'success', text: '成功' },
       failed: { color: 'error', text: '失败' },
       skipped: { color: 'warning', text: '跳过' },
+      cancelled: { color: 'default', text: '已取消' },
     };
     
     const config = statusMap[status] || statusMap.pending;
@@ -341,14 +359,15 @@ const ReportProgress = () => {
                       <Descriptions.Item label="状态">
                         <Space>
                           {getStatusTag(variable.status)}
-                          {/* 重试按钮 */}
-                          {variable.status === 'failed' && (
+                          {/* 重试按钮 - 只对失败或取消的变量显示 */}
+                          {(variable.status === 'failed' || variable.status === 'cancelled') && (
                             <Button
                               type="link"
                               size="small"
                               icon={<ReloadOutlined />}
-                              onClick={() => handleRetryVariable(variable.variable_name)}
+                              onClick={() => handleRetryVariable(variable.variable_name, variable.status)}
                               loading={retryVariableMutation.isPending}
+                              disabled={!canRetry(variable.status) || retryVariableMutation.isPending}
                             >
                               重试
                             </Button>

@@ -242,6 +242,12 @@ async def execute_report_generation(
         if task:
             task.status = ReportStatus.RUNNING
             task.started_at = datetime.utcnow()
+            
+            # Update report status to RUNNING
+            report = db_session.query(Report).filter(Report.task_id == task_id).first()
+            if report:
+                report.status = ReportStatus.RUNNING
+            
             db_session.commit()
             
             # Broadcast task started event
@@ -345,11 +351,10 @@ async def execute_report_generation(
                         var_record.duration_ms = result.duration_ms
                         if result.error:
                             var_record.error_message = result.error
-                        # Store preview of result (limit size)
+                        # Store complete result value for context reuse (e.g., in retry scenarios)
+                        # JSON field can store dict, list, str, int, float, bool, None
                         if result.value is not None:
-                            import json
-                            preview = json.dumps(result.value, ensure_ascii=False)[:500]
-                            var_record.result_preview = {"preview": preview}
+                            var_record.result_preview = result.value
                     db_session.commit()
                     
                     # Broadcast variable completed or failed event
@@ -416,18 +421,28 @@ async def execute_report_generation(
         if task and task.started_at:
             duration_ms = int((datetime.utcnow() - task.started_at).total_seconds() * 1000)
         
-        # Create report
-        report_id = f"rpt_{uuid.uuid4().hex[:12]}"
-        report = Report(
-            id=report_id,
-            template_id=template_id,
-            task_id=task_id,
-            title=title,
-            status=ReportStatus.SUCCESS,
-            markdown_content=markdown_content,
-            duration_ms=duration_ms
-        )
-        db_session.add(report)
+        # Update existing report with success status and content
+        report = db_session.query(Report).filter(Report.task_id == task_id).first()
+        if not report:
+            # Fallback: create report if it doesn't exist (shouldn't happen normally)
+            report_id = f"rpt_{uuid.uuid4().hex[:12]}"
+            report = Report(
+                id=report_id,
+                template_id=template_id,
+                task_id=task_id,
+                title=title,
+                status=ReportStatus.SUCCESS,
+                markdown_content=markdown_content,
+                duration_ms=duration_ms
+            )
+            db_session.add(report)
+        else:
+            # Update existing report
+            report_id = report.id
+            report.title = title
+            report.status = ReportStatus.SUCCESS
+            report.markdown_content = markdown_content
+            report.duration_ms = duration_ms
         
         # Update task status
         if task:
@@ -464,7 +479,14 @@ async def execute_report_generation(
                 task.finished_at = datetime.utcnow()
                 if task.started_at:
                     duration_ms = int((task.finished_at - task.started_at).total_seconds() * 1000)
-                db_session.commit()
+            
+            # Update report status to FAILED
+            report = db_session.query(Report).filter(Report.task_id == task_id).first()
+            if report:
+                report.status = ReportStatus.FAILED
+                report.duration_ms = duration_ms
+            
+            db_session.commit()
             
             # Format detailed error information
             error_info = _format_error_details(e)
@@ -505,6 +527,18 @@ async def generate_report(
         inputs_json=request.inputs
     )
     db.add(task)
+    
+    # Create report record immediately with PENDING status
+    report_id = f"rpt_{uuid.uuid4().hex[:12]}"
+    report = Report(
+        id=report_id,
+        template_id=request.template_id,
+        task_id=task_id,
+        title=f"Report - {template.name}",
+        status=ReportStatus.PENDING,
+        markdown_content=""  # Empty string for pending reports
+    )
+    db.add(report)
     db.commit()
     
     # Get AI config (api_key and api_base)
@@ -667,6 +701,84 @@ async def download_report(
     )
 
 
+@router.get("/{report_id}/convert/word")
+async def convert_report_to_word(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+    """Convert report to Word document (.docx)"""
+    from app.utils.document_converter import (
+        DocumentConverter, 
+        PandocNotFoundError, 
+        DocumentConversionError
+    )
+    from urllib.parse import quote
+    
+    # Get report from database
+    report = db.query(Report).filter(Report.id == report_id).first()
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    # Only allow conversion for successful reports
+    if report.status != ReportStatus.SUCCESS:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot convert report with status '{report.status.value}'. Only successful reports can be converted."
+        )
+    
+    # Check if report has content
+    if not report.markdown_content or report.markdown_content.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail="Report has no content to convert"
+        )
+    
+    try:
+        # Convert markdown to docx
+        docx_bytes = DocumentConverter.markdown_to_docx(
+            markdown_content=report.markdown_content,
+            output_filename=report.title or report.id
+        )
+        
+        # Generate filename
+        filename = f"{report.title or report.id}.docx"
+        safe_filename = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in filename)
+        if not safe_filename.endswith('.docx'):
+            safe_filename += '.docx'
+        
+        # Encode filename for headers
+        encoded_filename = quote(safe_filename)
+        
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+            }
+        )
+        
+    except PandocNotFoundError as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Pandoc is not installed on the server. Please contact the administrator."
+        )
+    
+    except DocumentConversionError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to convert document: {str(e)}"
+        )
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error during conversion: {str(e)}"
+        )
+
+
 @router.get("/tasks/{task_id}/status", response_model=TaskStatusResponse)
 async def get_task_status(
     task_id: str,
@@ -744,6 +856,11 @@ async def cancel_task(
     task.status = ReportStatus.CANCELLED
     task.finished_at = datetime.utcnow()
     
+    # Update report status to CANCELLED
+    report = db.query(Report).filter(Report.task_id == task_id).first()
+    if report:
+        report.status = ReportStatus.CANCELLED
+    
     # Update running variables to cancelled
     running_vars = db.query(GenerationTaskVariable).filter(
         GenerationTaskVariable.task_id == task_id,
@@ -759,11 +876,11 @@ async def cancel_task(
     db.commit()
     
     # Broadcast WebSocket event
-    await ws_manager.broadcast_to_task(
+    from app.services.websocket_manager import WSEventType
+    await ws_manager.send_event(
         task_id,
+        WSEventType.TASK_CANCELLED,
         {
-            "type": "task_cancelled",
-            "task_id": task_id,
             "reason": request.reason if request else None,
             "cancelled_at": task.finished_at.isoformat()
         }
@@ -804,10 +921,25 @@ async def retry_variable(
         raise HTTPException(status_code=404, detail="Variable not found")
     
     # Check if variable can be retried
-    if var.status not in [VariableStatusType.FAILED, VariableStatusType.CANCELLED]:
+    # Allow retry for FAILED, CANCELLED, and stuck PENDING (no started_at or started > 5 min ago)
+    can_retry = False
+    
+    if var.status in [VariableStatusType.FAILED, VariableStatusType.CANCELLED]:
+        can_retry = True
+    elif var.status == VariableStatusType.PENDING:
+        # Allow retry if stuck in PENDING (task might be lost due to server restart)
+        if var.started_at is None:
+            can_retry = True
+        else:
+            # If started more than 5 minutes ago but still pending, consider it stuck
+            time_since_start = (datetime.utcnow() - var.started_at).total_seconds()
+            if time_since_start > 300:  # 5 minutes
+                can_retry = True
+    
+    if not can_retry:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot retry variable in status: {var.status.value}"
+            detail=f"Cannot retry variable in status: {var.status.value}. Variable is currently running or completed."
         )
     
     # Reset variable status
@@ -820,22 +952,9 @@ async def retry_variable(
     var.result_preview = None
     db.commit()
     
-    # Trigger retry in background
-    background_tasks.add_task(
-        retry_variable_execution,
-        task_id=task_id,
-        variable_name=variable_name
-    )
-    
-    # Broadcast WebSocket event
-    await ws_manager.broadcast_to_task(
-        task_id,
-        {
-            "type": "variable_retry_started",
-            "task_id": task_id,
-            "variable_name": variable_name
-        }
-    )
+    # Trigger retry in background using asyncio.create_task
+    # This ensures the async function is properly executed
+    asyncio.create_task(retry_variable_execution(task_id, variable_name))
     
     return VariableRetryResponse(
         task_id=task_id,
@@ -922,7 +1041,9 @@ async def retry_variable_execution(task_id: str, variable_name: str):
         await ws_manager.broadcast_variable_started(
             task_id=task_id,
             variable_name=variable_name,
-            source=variable_meta.source.value
+            source=variable_meta.source.value,
+            dependencies=variable_meta.dependencies or [],
+            started_at=var_record.started_at
         )
         
         # Execute variable
@@ -934,7 +1055,9 @@ async def retry_variable_execution(task_id: str, variable_name: str):
         var_record.duration_ms = result.duration_ms
         
         if result.status == VariableStatus.SUCCESS:
-            var_record.result_preview = result.value if isinstance(result.value, (dict, list)) else None
+            # Store complete result value consistent with main execution flow
+            # JSON field can store dict, list, str, int, float, bool, None
+            var_record.result_preview = result.value
             db_session.commit()
             
             # Broadcast variable completed
@@ -1005,6 +1128,17 @@ async def continue_report_generation(task_id: str, context: ExecutionContext, db
         task = db_session.query(GenerationTask).filter_by(id=task_id).first()
         template = db_session.query(Template).filter_by(id=task.template_id).first()
         
+        # Reload ALL successful variables into context to ensure we have complete data
+        # This is important because the context might have been created before the retry
+        successful_vars = db_session.query(GenerationTaskVariable).filter(
+            GenerationTaskVariable.task_id == task_id,
+            GenerationTaskVariable.status == VariableStatusType.SUCCESS
+        ).all()
+        
+        for var in successful_vars:
+            if var.result_preview is not None:
+                context.set_variable(var.variable_name, var.result_preview)
+        
         # Render template
         markdown_content = template_renderer.render(
             template_content=template.template_content,
@@ -1016,19 +1150,29 @@ async def continue_report_generation(task_id: str, context: ExecutionContext, db
         if task.started_at:
             duration_ms = int((datetime.utcnow() - task.started_at).total_seconds() * 1000)
         
-        # Create report
-        report_id = f"report_{uuid.uuid4().hex[:12]}"
-        report = Report(
-            id=report_id,
-            template_id=task.template_id,
-            task_id=task_id,
-            title=f"Report for {template.name}",
-            status=ReportStatus.SUCCESS,
-            markdown_content=markdown_content,
-            cost_usd=0,
-            duration_ms=duration_ms
-        )
-        db_session.add(report)
+        # Update existing report with success status and content
+        report = db_session.query(Report).filter(Report.task_id == task_id).first()
+        if not report:
+            # Fallback: create report if it doesn't exist (shouldn't happen normally)
+            report_id = f"report_{uuid.uuid4().hex[:12]}"
+            report = Report(
+                id=report_id,
+                template_id=task.template_id,
+                task_id=task_id,
+                title=f"Report for {template.name}",
+                status=ReportStatus.SUCCESS,
+                markdown_content=markdown_content,
+                cost_usd=0,
+                duration_ms=duration_ms
+            )
+            db_session.add(report)
+        else:
+            # Update existing report
+            report_id = report.id
+            report.title = f"Report for {template.name}"
+            report.status = ReportStatus.SUCCESS
+            report.markdown_content = markdown_content
+            report.duration_ms = duration_ms
         
         # Update task status
         task.status = ReportStatus.SUCCESS
@@ -1053,6 +1197,12 @@ async def continue_report_generation(task_id: str, context: ExecutionContext, db
         # Mark task as failed
         task.status = ReportStatus.FAILED
         task.finished_at = datetime.utcnow()
+        
+        # Update report status to FAILED
+        report = db_session.query(Report).filter(Report.task_id == task_id).first()
+        if report:
+            report.status = ReportStatus.FAILED
+        
         db_session.commit()
         
         await ws_manager.broadcast_task_failed(

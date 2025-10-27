@@ -38,6 +38,23 @@ export const downloadReport = async (reportId: string): Promise<void> => {
   window.URL.revokeObjectURL(url);
 };
 
+// 转换报告为Word
+export const convertReportToWord = async (reportId: string): Promise<void> => {
+  const response = await client.get(`/api/reports/${reportId}/convert/word`, {
+    responseType: 'blob',
+  });
+  
+  // 创建下载链接
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `report_${reportId}.docx`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 // 获取任务状态
 export const getTaskStatus = async (taskId: string): Promise<TaskStatus> => {
   const response = await client.get<TaskStatus>(`/api/reports/tasks/${taskId}/status`);

@@ -10,6 +10,7 @@ import {
   Input,
   Select,
   message,
+  Tooltip,
 } from 'antd';
 import {
   EyeOutlined,
@@ -17,12 +18,12 @@ import {
   SearchOutlined,
   ClockCircleOutlined,
   RedoOutlined,
+  FileWordOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { getReportList } from '../../api';
+import { getReportList, convertReportToWord } from '../../api';
 import type { ReportListItem } from '../../types';
 
-const { Search } = Input;
 const { Option } = Select;
 
 const ReportList = () => {
@@ -31,6 +32,7 @@ const ReportList = () => {
   const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [templateFilter, setTemplateFilter] = useState<string | undefined>();
+  const [convertingReportId, setConvertingReportId] = useState<string | null>(null);
 
   // 获取报告列表
   const { data, isLoading, refetch } = useQuery({
@@ -55,6 +57,21 @@ const ReportList = () => {
     
     const config = statusMap[status] || statusMap.pending;
     return <Tag color={config.color}>{config.text}</Tag>;
+  };
+
+  // 处理转换为Word
+  const handleConvertToWord = async (reportId: string) => {
+    try {
+      setConvertingReportId(reportId);
+      await convertReportToWord(reportId);
+      message.success('Word文档已下载');
+    } catch (error: any) {
+      console.error('转换失败:', error);
+      const errorMsg = error?.response?.data?.detail || '转换失败，请重试';
+      message.error(errorMsg);
+    } finally {
+      setConvertingReportId(null);
+    }
   };
 
   const columns = [
@@ -92,46 +109,59 @@ const ReportList = () => {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 120,
       render: (_: any, record: ReportListItem) => (
         <Space size="small">
           {/* 成功状态：显示查看报告按钮 */}
           {record.status === 'success' && (
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => navigate(`/reports/${record.id}`)}
-            >
-              查看报告
-            </Button>
+            <Tooltip title="查看报告">
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => navigate(`/reports/${record.id}`)}
+              />
+            </Tooltip>
+          )}
+          
+          {/* 成功状态：显示转换Word按钮 */}
+          {record.status === 'success' && (
+            <Tooltip title="转换Word">
+              <Button
+                type="link"
+                size="small"
+                icon={<FileWordOutlined />}
+                onClick={() => handleConvertToWord(record.id)}
+                loading={convertingReportId === record.id}
+              />
+            </Tooltip>
           )}
           
           {/* 所有状态：显示查看生成过程按钮（只要有task_id） */}
           {record.task_id && (
-            <Button
-              type="link"
-              size="small"
-              icon={<ClockCircleOutlined />}
-              onClick={() => navigate(`/generate/${record.task_id}`)}
-            >
-              查看生成过程
-            </Button>
+            <Tooltip title="查看生成过程">
+              <Button
+                type="link"
+                size="small"
+                icon={<ClockCircleOutlined />}
+                onClick={() => navigate(`/generate/${record.task_id}`)}
+              />
+            </Tooltip>
           )}
           
           {/* 失败状态：显示重新生成按钮 */}
           {record.status === 'failed' && record.task_id && (
-            <Button
-              type="link"
-              size="small"
-              icon={<RedoOutlined />}
-              onClick={() => {
-                message.info('跳转到生成页面，您可以重新生成报告');
-                navigate(`/generate/${record.task_id}`);
-              }}
-            >
-              重新生成
-            </Button>
+            <Tooltip title="重新生成">
+              <Button
+                type="link"
+                size="small"
+                icon={<RedoOutlined />}
+                onClick={() => {
+                  message.info('跳转到生成页面，您可以重新生成报告');
+                  navigate(`/generate/${record.task_id}`);
+                }}
+              />
+            </Tooltip>
           )}
         </Space>
       ),

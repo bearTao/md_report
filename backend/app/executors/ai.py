@@ -168,18 +168,34 @@ class AiExecutor(BaseVariableExecutor):
             logger.info(f"📄 AI响应内容长度: {len(content)} 字符")
             logger.debug(f"AI完整响应:\n{'-'*60}\n{content}\n{'-'*60}")
             
-            # Debug: Check if content is empty
+            # Handle empty AI response - treat as empty value instead of error
             if not content or not content.strip():
-                raise AiGenerationError(
-                    self.variable_name,
-                    f"AI returned empty response. Raw output type: {type(raw_output)}, Raw output: {raw_output}"
-                )
-            
-            # 8. Clean and parse JSON output
-            logger.info(f"🔍 解析AI输出为JSON...")
-            result = self._parse_ai_output(content)
-            logger.info(f"✅ JSON解析成功")
-            logger.debug(f"解析结果: {str(result)[:200]}...")
+                logger.warning(f"⚠️  AI返回空内容，将使用空值")
+                # Determine empty value based on schema or default to empty dict
+                if self.metadata.schema:
+                    schema_type = self.metadata.schema.get('type', 'object')
+                    if schema_type == 'array':
+                        result = []
+                        logger.info(f"✅ 根据schema返回空数组")
+                    elif schema_type == 'object':
+                        result = {}
+                        logger.info(f"✅ 根据schema返回空对象")
+                    elif schema_type == 'string':
+                        result = ""
+                        logger.info(f"✅ 根据schema返回空字符串")
+                    else:
+                        result = {}
+                        logger.info(f"✅ 默认返回空对象")
+                else:
+                    # Default to empty dict if no schema
+                    result = {}
+                    logger.info(f"✅ 无schema定义，默认返回空对象")
+            else:
+                # 8. Clean and parse JSON output
+                logger.info(f"🔍 解析AI输出为JSON...")
+                result = self._parse_ai_output(content)
+                logger.info(f"✅ JSON解析成功")
+                logger.debug(f"解析结果: {str(result)[:200]}...")
             
             # 9. Validate against schema if provided
             if self.metadata.schema:

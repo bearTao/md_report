@@ -15,6 +15,7 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import dayjs from 'dayjs';
 import { getReport, downloadReport } from '../../api';
 
@@ -148,7 +149,11 @@ const ReportPreview = () => {
             }}
             className="markdown-body"
           >
-            <ReactMarkdown>{report.markdown_content}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+            >
+              {report.markdown_content}
+            </ReactMarkdown>
           </div>
         </div>
       </Card>

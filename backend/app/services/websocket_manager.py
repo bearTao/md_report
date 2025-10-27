@@ -14,6 +14,7 @@ class WSEventType(str, Enum):
     TASK_STARTED = "task_started"
     TASK_COMPLETED = "task_completed"
     TASK_FAILED = "task_failed"
+    TASK_CANCELLED = "task_cancelled"
     RENDER_FAILED = "render_failed"
     VARIABLE_STARTED = "variable_started"
     VARIABLE_PROGRESS = "variable_progress"
