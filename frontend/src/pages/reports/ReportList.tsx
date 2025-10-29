@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -11,6 +11,7 @@ import {
   Select,
   message,
   Tooltip,
+  Popconfirm,
 } from 'antd';
 import {
   EyeOutlined,
@@ -19,9 +20,10 @@ import {
   ClockCircleOutlined,
   RedoOutlined,
   FileWordOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { getReportList, convertReportToWord } from '../../api';
+import { getReportList, convertReportToWord, deleteReport } from '../../api';
 import type { ReportListItem } from '../../types';
 
 const { Option } = Select;
@@ -73,6 +75,19 @@ const ReportList = () => {
       setConvertingReportId(null);
     }
   };
+
+  // 删除报告 mutation
+  const deleteReportMutation = useMutation({
+    mutationFn: (reportId: string) => deleteReport(reportId),
+    onSuccess: (data) => {
+      message.success(data.message || '报告已删除');
+      refetch(); // 刷新列表
+    },
+    onError: (error: any) => {
+      const errorMsg = error?.response?.data?.detail || '删除失败，请重试';
+      message.error(errorMsg);
+    },
+  });
 
   const columns = [
     {
@@ -163,6 +178,26 @@ const ReportList = () => {
               />
             </Tooltip>
           )}
+          
+          {/* 所有状态：显示删除按钮 */}
+          <Popconfirm
+            title="确定要删除此报告吗？"
+            description="删除后将无法恢复，包括任务和执行记录"
+            onConfirm={() => deleteReportMutation.mutate(record.id)}
+            okText="确定"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Tooltip title="删除报告">
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                loading={deleteReportMutation.isPending}
+              />
+            </Tooltip>
+          </Popconfirm>
         </Space>
       ),
     },

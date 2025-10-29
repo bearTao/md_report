@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
@@ -13,6 +13,8 @@ import {
   Space,
   message,
   Spin,
+  Collapse,
+  Alert,
 } from 'antd';
 import { getTemplates, getTemplate, generateReport } from '../../api';
 import type { Template, VariableConfig } from '../../types';
@@ -25,6 +27,8 @@ const GenerateReport = () => {
   const [form] = Form.useForm();
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [includedTemplates, setIncludedTemplates] = useState<Template[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
 
   // 查询模板列表
   const { data: templateList, isLoading: isLoadingList } = useQuery({
@@ -48,6 +52,48 @@ const GenerateReport = () => {
     },
   });
 
+  // 扫描模板中的 include 标签，加载所有被包含的模板
+  useEffect(() => {
+    const scanIncludedTemplates = async () => {
+      if (!template) {
+        setIncludedTemplates([]);
+        return;
+      }
+
+      setIsScanning(true);
+      try {
+        const includePattern = /{%\s*include\s+"([^"]+)"\s*%}/g;
+        const matches = [...template.template_content.matchAll(includePattern)];
+        const templateIds = matches.map(m => m[1]);
+
+        if (templateIds.length === 0) {
+          setIncludedTemplates([]);
+          setIsScanning(false);
+          return;
+        }
+
+        // 加载所有被 include 的模板
+        const includedTemps: Template[] = [];
+        for (const tid of templateIds) {
+          try {
+            const temp = await getTemplate(tid);
+            includedTemps.push(temp);
+          } catch (error) {
+            console.error(`Failed to load included template ${tid}:`, error);
+          }
+        }
+
+        setIncludedTemplates(includedTemps);
+      } catch (error) {
+        console.error('Error scanning includes:', error);
+      } finally {
+        setIsScanning(false);
+      }
+    };
+
+    scanIncludedTemplates();
+  }, [template]);
+
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplateId(templateId);
     setCurrentStep(1);
@@ -60,9 +106,37 @@ const GenerateReport = () => {
       return;
     }
 
+    // 构建嵌套的 inputs 结构
+    let finalInputs: any;
+    
+    if (includedTemplates.length > 0) {
+      // 有嵌套模板，构建嵌套结构
+      finalInputs = {
+        [selectedTemplateId]: {}, // 主模板的inputs
+      };
+      
+      // 分配变量到对应的模板
+      for (const [key, value] of Object.entries(values)) {
+        // key 格式: "template_id__var_name" 或 "var_name"
+        if (key.includes('__')) {
+          const [templateId, varName] = key.split('__', 2);
+          if (!finalInputs[templateId]) {
+            finalInputs[templateId] = {};
+          }
+          finalInputs[templateId][varName] = value;
+        } else {
+          // 没有前缀的变量属于主模板
+          finalInputs[selectedTemplateId][key] = value;
+        }
+      }
+    } else {
+      // 没有嵌套模板，使用原来的扁平结构
+      finalInputs = values;
+    }
+
     generateMutation.mutate({
       template_id: selectedTemplateId,
-      inputs: values,
+      inputs: finalInputs,
     });
   };
 
@@ -186,8 +260,27 @@ const GenerateReport = () => {
                 <h3 style={{ marginBottom: 16 }}>
                   填写数据 - {template.name}
                 </h3>
+
+                {isScanning && (
+                  <Alert
+                    message="正在扫描嵌套模板..."
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                )}
+
+                {includedTemplates.length > 0 && (
+                  <Alert
+                    message={`检测到 ${includedTemplates.length} 个嵌套子模板`}
+                    description="请分别填写每个模板的变量值"
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                )}
                 
-                {getUserInputVariables(template).length === 0 ? (
+                {getUserInputVariables(template).length === 0 && includedTemplates.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '50px 0' }}>
                     <p>该模板不需要用户输入数据</p>
                     <Button
@@ -204,9 +297,32 @@ const GenerateReport = () => {
                     layout="vertical"
                     onFinish={handleSubmit}
                   >
-                    {getUserInputVariables(template).map(({ name, config }) =>
-                      renderFormItem(name, config)
+                    {/* 主模板的变量 */}
+                    {getUserInputVariables(template).length > 0 && (
+                      <Card
+                        title={`主模板: ${template.name}`}
+                        size="small"
+                        style={{ marginBottom: 16 }}
+                      >
+                        {getUserInputVariables(template).map(({ name, config }) =>
+                          renderFormItem(name, config)
+                        )}
+                      </Card>
                     )}
+
+                    {/* 子模板的变量 */}
+                    {includedTemplates.map((includedTemp) => (
+                      <Card
+                        key={includedTemp.id}
+                        title={`子模板: ${includedTemp.name} (ID: ${includedTemp.id})`}
+                        size="small"
+                        style={{ marginBottom: 16 }}
+                      >
+                        {getUserInputVariables(includedTemp).map(({ name, config }) =>
+                          renderFormItem(`${includedTemp.id}__${name}`, config)
+                        )}
+                      </Card>
+                    ))}
 
                     <Form.Item>
                       <Space>

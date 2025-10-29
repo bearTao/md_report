@@ -5,6 +5,7 @@ import type {
   Report,
   TaskStatus,
   ReportListResponse,
+  DeleteReportResponse,
 } from '../types';
 
 // 启动报告生成
@@ -117,6 +118,12 @@ export const getTaskLogs = async (params: {
   const response = await client.get(`/api/reports/tasks/${taskId}/logs`, {
     params: queryParams,
   });
+  return response.data;
+};
+
+// 删除报告
+export const deleteReport = async (reportId: string): Promise<DeleteReportResponse> => {
+  const response = await client.delete<DeleteReportResponse>(`/api/reports/${reportId}`);
   return response.data;
 };
 

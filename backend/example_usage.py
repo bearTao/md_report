@@ -1332,7 +1332,90 @@ async def example_comprehensive_all_types():
     }
     
     metadata = {
-        # ==================== 1. USER_INPUT 类型 ====================
+        # ==================== 1. CONSTANT 类型（常量/配置变量）====================
+        # 常量 - 业务参数
+        "min_salary_standard": VariableMetadata(
+            type="number",
+            source=VariableSource.CONSTANT,
+            description="公司最低薪资标准",
+            required=False,
+            value=15000
+        ),
+        
+        "max_salary_standard": VariableMetadata(
+            type="number",
+            source=VariableSource.CONSTANT,
+            description="公司最高薪资标准",
+            required=False,
+            value=50000
+        ),
+        
+        # 常量 - 税率
+        "vat_rate": VariableMetadata(
+            type="number",
+            source=VariableSource.CONSTANT,
+            description="增值税率",
+            required=False,
+            value=0.13
+        ),
+        
+        "income_tax_rate": VariableMetadata(
+            type="number",
+            source=VariableSource.CONSTANT,
+            description="企业所得税率",
+            required=False,
+            value=0.25
+        ),
+        
+        # 常量 - 配置参数
+        "api_base_url": VariableMetadata(
+            type="string",
+            source=VariableSource.CONSTANT,
+            description="API基础地址",
+            required=False,
+            value="http://10.10.20.10:5000"
+        ),
+        
+        "company_name": VariableMetadata(
+            type="string",
+            source=VariableSource.CONSTANT,
+            description="公司名称",
+            required=False,
+            value="XX科技有限公司"
+        ),
+        
+        # 常量 - 布尔配置
+        "enable_cache": VariableMetadata(
+            type="boolean",
+            source=VariableSource.CONSTANT,
+            description="是否启用缓存",
+            required=False,
+            value=True
+        ),
+        
+        # 常量 - 数组
+        "major_cities": VariableMetadata(
+            type="array",
+            source=VariableSource.CONSTANT,
+            description="主要城市列表",
+            required=False,
+            value=["北京", "上海", "深圳", "杭州", "成都", "西安"]
+        ),
+        
+        # 常量 - 对象
+        "default_pagination": VariableMetadata(
+            type="object",
+            source=VariableSource.CONSTANT,
+            description="默认分页配置",
+            required=False,
+            value={
+                "page": 1,
+                "page_size": 20,
+                "max_page_size": 100
+            }
+        ),
+        
+        # ==================== 2. USER_INPUT 类型（用户输入）====================
         "report_title": VariableMetadata(
             type="string",
             source=VariableSource.USER_INPUT,
@@ -1375,7 +1458,7 @@ async def example_comprehensive_all_types():
             required=True
         ),
         
-        # ==================== 2. SYSTEM 类型 ====================
+        # ==================== 3. SYSTEM 类型（系统生成）====================
         "report_metadata": VariableMetadata(
             type="object",
             source=VariableSource.SYSTEM,
@@ -1405,12 +1488,12 @@ async def example_comprehensive_all_types():
             )
         ),
         
-        # ==================== 3. API 类型 ====================
-        # API - 基础数据类型
+        # ==================== 4. API 类型（API调用）====================
+        # API - 基础数据类型（模式1：完整响应）
         "api_basic_sales": VariableMetadata(
             type="object",
             source=VariableSource.API,
-            description="基础销售数据（API - 混合基础类型）",
+            description="基础销售数据（API - 混合基础类型）- 完整响应模式",
             required=False,
             default={
                 "total_sales": 156780.50,
@@ -1421,7 +1504,7 @@ async def example_comprehensive_all_types():
             api_config=ApiConfig(
                 endpoint="http://10.10.20.10:5000/api/sales/basic",
                 method="GET",
-                response_mapping={},  # 直接使用整个响应
+                response_mapping=None,  # None = 返回完整响应
                 timeout=10
             )
         ),
@@ -1444,11 +1527,11 @@ async def example_comprehensive_all_types():
             )
         ),
         
-        # API - 对象数组
+        # API - 对象数组（模式2：字符串路径提取）
         "api_product_sales": VariableMetadata(
             type="array",
             source=VariableSource.API,
-            description="产品销售列表（API - 对象数组）",
+            description="产品销售列表（API - 对象数组）- 字符串路径提取模式",
             required=False,
             default=[
                 {
@@ -1467,7 +1550,37 @@ async def example_comprehensive_all_types():
             api_config=ApiConfig(
                 endpoint="http://10.10.20.10:5000/api/sales/object-array",
                 method="GET",
-                response_mapping={},
+                response_mapping="data.items",  # 字符串路径 = 提取数组
+                timeout=10
+            )
+        ),
+        
+        # API - 使用 JMESPath 高级功能（投影）
+        "api_product_names": VariableMetadata(
+            type="array",
+            source=VariableSource.API,
+            description="产品名称列表（JMESPath投影）",
+            required=False,
+            default=["Laptop", "Mouse", "Keyboard"],
+            api_config=ApiConfig(
+                endpoint="http://10.10.20.10:5000/api/sales/object-array",
+                method="GET",
+                response_mapping="data.items[*].product",  # JMESPath: 提取所有产品名
+                timeout=10
+            )
+        ),
+        
+        # API - 使用 JMESPath 过滤
+        "api_expensive_products": VariableMetadata(
+            type="array",
+            source=VariableSource.API,
+            description="高价产品列表（JMESPath过滤）",
+            required=False,
+            default=[],
+            api_config=ApiConfig(
+                endpoint="http://10.10.20.10:5000/api/sales/object-array",
+                method="GET",
+                response_mapping="data.items[?price > `100`]",  # JMESPath: 价格>100
                 timeout=10
             )
         ),
@@ -1502,50 +1615,50 @@ async def example_comprehensive_all_types():
             )
         ),
         
-        # API - 复杂混合数据
+        # API - 复杂混合数据（模式3：字典映射）
         "api_complex_data": VariableMetadata(
             type="object",
             source=VariableSource.API,
-            description="复杂营销数据（API - 深度嵌套）",
+            description="复杂营销数据（API - 深度嵌套）- 字典映射模式",
             required=False,
             default={
-                "success": True,
-                "timestamp": "2024-01-15T10:30:00Z (示例)",
-                "summary": {
-                    "total_revenue": 250000.75,
-                    "active_campaigns": 5,
-                    "conversion_rate": 0.23
-                },
-                "campaigns": [
-                    {
-                        "id": 1,
-                        "name": "Summer Sale (示例)",
-                        "discounts": [0.1, 0.15, 0.2],
-                        "target_audience": {
-                            "age_range": [18, 45],
-                            "regions": ["US", "CA", "MX"]
-                        }
-                    },
-                    {
-                        "id": 2,
-                        "name": "Holiday Special (示例)",
-                        "discounts": [0.25, 0.3],
-                        "target_audience": {
-                            "age_range": [25, 60],
-                            "regions": ["US", "UK"]
-                        }
-                    }
-                ]
+                "revenue": 250000.75,
+                "campaigns": 5,
+                "rate": 0.23,
+                "top_campaign": "Summer Sale"
             },
             api_config=ApiConfig(
                 endpoint="http://10.10.20.10:5000/api/sales/complex",
                 method="GET",
-                response_mapping={},
+                response_mapping={  # 字典映射：重组数据
+                    "revenue": "summary.total_revenue",
+                    "campaigns": "summary.active_campaigns",
+                    "rate": "summary.conversion_rate",
+                    "top_campaign": "campaigns[0].name"
+                },
                 timeout=10
             )
         ),
         
-        # ==================== 4. SQL 类型 - 所有5种ResultMode ====================
+        # API - 带重试机制（不稳定的API）
+        "api_with_retry": VariableMetadata(
+            type="object",
+            source=VariableSource.API,
+            description="带重试机制的API调用（适用于不稳定服务）",
+            required=False,
+            default={"status": "示例数据"},
+            api_config=ApiConfig(
+                endpoint="http://10.10.20.10:5000/api/unstable",
+                method="GET",
+                response_mapping="data",
+                timeout=10,
+                retry_count=3,  # 最多重试3次
+                retry_status_codes=[429, 500, 502, 503, 504],  # 这些状态码会触发重试
+                retry_backoff=2.0  # 重试间隔：2秒、4秒、6秒
+            )
+        ),
+        
+        # ==================== 5. SQL 类型 - 所有5种ResultMode ====================
         # 注意：这些SQL变量展示配置，但需要数据库连接才能真实执行
         
         # SQL - FIRST_ROW 模式

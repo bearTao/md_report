@@ -17,6 +17,7 @@ alembic==1.13.1
 
 # HTTP Client
 httpx==0.26.0
+jmespath>=1.0.1
 
 # AI & LangChain (updated for Python 3.12 compatibility)
 langchain==0.3.0

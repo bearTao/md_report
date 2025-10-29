@@ -4,7 +4,10 @@ from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 import uuid
 import asyncio
+import logging
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.models.db_models import (
@@ -18,7 +21,8 @@ from app.schemas.api_schemas import (
     TaskStatusResponse, TaskVariableDetail, VariableStatusEnum,
     ReportListResponse, ReportListItem,
     TaskCancelRequest, TaskCancelResponse, VariableRetryResponse,
-    ExecutionLogItem, ExecutionLogListResponse
+    ExecutionLogItem, ExecutionLogListResponse,
+    DeleteReportResponse
 )
 from app.services.scheduler import ExecutionScheduler
 from app.services.context import ExecutionContext
@@ -237,16 +241,32 @@ async def execute_report_generation(
     db_session = SessionLocal()
     
     try:
+        # Detect if user_inputs is nested structure (for templates with includes)
+        # Nested format: {"template_id": {"var": "value"}}
+        # Flat format: {"var": "value"}
+        nested_user_inputs = {}
+        main_template_inputs = {}
+        
+        # Check if inputs contains template_id as keys (nested structure)
+        if template_id in user_inputs and isinstance(user_inputs[template_id], dict):
+            # Nested structure detected
+            nested_user_inputs = user_inputs
+            main_template_inputs = user_inputs.get(template_id, {})
+        else:
+            # Flat structure (backward compatibility)
+            main_template_inputs = user_inputs
+            nested_user_inputs = {template_id: user_inputs}
+        
         # Update task status to running
         task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
         if task:
-            task.status = ReportStatus.RUNNING
+            task.status = 'running'
             task.started_at = datetime.utcnow()
             
             # Update report status to RUNNING
             report = db_session.query(Report).filter(Report.task_id == task_id).first()
             if report:
-                report.status = ReportStatus.RUNNING
+                report.status = 'running'
             
             db_session.commit()
             
@@ -289,21 +309,21 @@ async def execute_report_generation(
                     max_overflow=10
                 )
                 
-                print(f"Registered database connection: {db_conn.name}")
+                logger.info(f"Registered database connection: {db_conn.name}")
                 
             except Exception as e:
-                print(f"Failed to register connection {db_conn.name}: {str(e)}")
+                logger.error(f"Failed to register connection {db_conn.name}: {str(e)}")
         
         # Parse metadata to VariableMetadata objects
         parsed_metadata = {}
         for var_name, var_config in metadata.items():
             parsed_metadata[var_name] = VariableMetadata(**var_config)
         
-        # Create execution context
+        # Create execution context for main template
         context = ExecutionContext(
             task_id=task_id,
             template_id=template_id,
-            user_inputs=user_inputs,
+            user_inputs=main_template_inputs,  # Use main template's inputs only
             metadata=parsed_metadata
         )
         
@@ -322,8 +342,8 @@ async def execute_report_generation(
                 var_record = GenerationTaskVariable(
                     task_id=task_id,
                     variable_name=var_name,
-                    source=VariableSourceType(var_meta.source.value),
-                    status=VariableStatusType.RUNNING,
+                    source=var_meta.source.value,  # 直接使用字符串值
+                    status='running',  # 直接使用字符串值
                     started_at=datetime.utcnow()
                 )
                 db_session.add(var_record)
@@ -376,13 +396,35 @@ async def execute_report_generation(
         # Execute all variables
         results = await scheduler.execute_all(context, progress_callback)
         
+        # Resolve template includes before rendering
+        try:
+            resolved_template_content = await template_renderer._resolve_includes(
+                template_content,
+                db_session,
+                nested_user_inputs,  # Pass full nested structure
+                template_id,  # Current template ID
+                openai_api_key,
+                openai_api_base
+            )
+        except Exception as e:
+            logger.error(f"Failed to resolve template includes for task {task_id}: {str(e)}")
+            # Fall back to original template if include resolution fails
+            resolved_template_content = template_content
+        
         # Render template
         try:
+            # 广播渲染开始事件
+            await ws_manager.broadcast_render_started(task_id)
+            
             all_variables = context.get_all_variables()
-            markdown_content = template_renderer.render(template_content, all_variables)
+            # 传入 task_id 以便记录渲染日志到数据库
+            markdown_content = template_renderer.render(resolved_template_content, all_variables, task_id=task_id)
+            
+            # 广播渲染完成事件
+            await ws_manager.broadcast_render_completed(task_id, len(markdown_content))
         except TemplateRenderError as e:
             # 渲染错误 - 保存到任务记录并广播
-            print(f"Template rendering failed for task {task_id}: {str(e)}")
+            logger.error(f"Template rendering failed for task {task_id}: {str(e)}")
             
             # 保存渲染错误到数据库
             task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
@@ -392,9 +434,15 @@ async def execute_report_generation(
                     "error_message": str(e),
                     "timestamp": datetime.utcnow().isoformat()
                 }
-                task.status = ReportStatus.FAILED
+                task.status = 'failed'
                 task.finished_at = datetime.utcnow()
-                db_session.commit()
+            
+            # 同时更新报告状态
+            report = db_session.query(Report).filter(Report.task_id == task_id).first()
+            if report:
+                report.status = 'failed'
+            
+            db_session.commit()
             
             # 广播渲染错误事件
             await ws_manager.broadcast_render_failed(
@@ -431,7 +479,7 @@ async def execute_report_generation(
                 template_id=template_id,
                 task_id=task_id,
                 title=title,
-                status=ReportStatus.SUCCESS,
+                status='success',
                 markdown_content=markdown_content,
                 duration_ms=duration_ms
             )
@@ -440,13 +488,13 @@ async def execute_report_generation(
             # Update existing report
             report_id = report.id
             report.title = title
-            report.status = ReportStatus.SUCCESS
+            report.status = 'success'
             report.markdown_content = markdown_content
             report.duration_ms = duration_ms
         
         # Update task status
         if task:
-            task.status = ReportStatus.SUCCESS
+            task.status = 'success'
             task.finished_at = datetime.utcnow()
         
         db_session.commit()
@@ -463,9 +511,7 @@ async def execute_report_generation(
         
     except Exception as e:
         # Log error first
-        print(f"Report generation failed for task {task_id}: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Report generation failed for task {task_id}: {str(e)}", exc_info=True)
         
         try:
             # Rollback failed transaction
@@ -475,7 +521,7 @@ async def execute_report_generation(
             task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
             duration_ms = None
             if task:
-                task.status = ReportStatus.FAILED
+                task.status = 'failed'
                 task.finished_at = datetime.utcnow()
                 if task.started_at:
                     duration_ms = int((task.finished_at - task.started_at).total_seconds() * 1000)
@@ -483,7 +529,7 @@ async def execute_report_generation(
             # Update report status to FAILED
             report = db_session.query(Report).filter(Report.task_id == task_id).first()
             if report:
-                report.status = ReportStatus.FAILED
+                report.status = 'failed'
                 report.duration_ms = duration_ms
             
             db_session.commit()
@@ -498,13 +544,12 @@ async def execute_report_generation(
                 summary={"duration_ms": duration_ms or 0}
             )
         except Exception as commit_error:
-            print(f"Failed to update task status: {commit_error}")
-            traceback.print_exc()
+            logger.error(f"Failed to update task status: {commit_error}", exc_info=True)
     
     finally:
         # Always close the session
         db_session.close()
-        print(f"Database session closed for task {task_id}")
+        logger.debug(f"Database session closed for task {task_id}")
 
 
 @router.post("/generate", response_model=ReportGenerateResponse, status_code=202)
@@ -523,7 +568,7 @@ async def generate_report(
     task = GenerationTask(
         id=task_id,
         template_id=request.template_id,
-        status=ReportStatus.PENDING,
+        status='pending',
         inputs_json=request.inputs
     )
     db.add(task)
@@ -535,7 +580,7 @@ async def generate_report(
         template_id=request.template_id,
         task_id=task_id,
         title=f"Report - {template.name}",
-        status=ReportStatus.PENDING,
+        status='pending',
         markdown_content=""  # Empty string for pending reports
     )
     db.add(report)
@@ -562,9 +607,7 @@ async def generate_report(
         try:
             future.result()
         except Exception as e:
-            print(f"UNCAUGHT EXCEPTION in background task {task_id}: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"UNCAUGHT EXCEPTION in background task {task_id}: {str(e)}", exc_info=True)
     
     task.add_done_callback(handle_task_exception)
     
@@ -588,11 +631,8 @@ async def list_reports(
     
     # Apply filters
     if status:
-        try:
-            status_enum = ReportStatus(status)
-            query = query.filter(Report.status == status_enum)
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+        # 直接使用字符串过滤（status列现在是VARCHAR）
+        query = query.filter(Report.status == status)
     
     if template_id:
         query = query.filter(Report.template_id == template_id)
@@ -622,7 +662,7 @@ async def list_reports(
             template_id=r.template_id,
             task_id=r.task_id,  # 添加task_id用于跳转到生成进度页面
             title=r.title,
-            status=ReportStatusEnum(r.status.value),
+            status=ReportStatusEnum(r.status),  # 直接使用字符串值
             created_at=created_at
         ))
     
@@ -661,13 +701,95 @@ async def get_report(
         template_id=report.template_id,
         task_id=report.task_id,
         title=report.title,
-        status=ReportStatusEnum(report.status.value),
+        status=ReportStatusEnum(report.status),  # 直接使用字符串值
         markdown_content=report.markdown_content,
         cost_usd=float(report.cost_usd) if report.cost_usd else None,
         duration_ms=report.duration_ms,
         created_at=created_at,
         updated_at=updated_at
     )
+
+
+@router.delete("/{report_id}", response_model=DeleteReportResponse)
+async def delete_report(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    删除报告及其关联的任务和变量记录
+    
+    删除顺序（避免外键约束）：
+    1. 删除报告记录 (reports)
+    2. 删除变量执行记录 (generation_task_variables)
+    3. 删除执行日志 (execution_logs)
+    4. 删除任务记录 (generation_tasks)
+    
+    Args:
+        report_id: 报告ID
+        db: 数据库会话
+        
+    Returns:
+        DeleteReportResponse: 删除结果和统计信息
+        
+    Raises:
+        HTTPException: 报告不存在时返回404
+    """
+    # 检查报告是否存在
+    report = db.query(Report).filter(Report.id == report_id).first()
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    task_id = report.task_id
+    deleted_counts = {
+        'reports': 0,
+        'tasks': 0,
+        'variables': 0,
+        'logs': 0
+    }
+    
+    try:
+        # 1. 删除报告记录
+        db.delete(report)
+        deleted_counts['reports'] = 1
+        
+        # 2. 如果有关联的任务，删除相关记录
+        if task_id:
+            # 2a. 删除变量执行记录
+            vars_deleted = db.query(GenerationTaskVariable).filter(
+                GenerationTaskVariable.task_id == task_id
+            ).delete()
+            deleted_counts['variables'] = vars_deleted
+            
+            # 2b. 删除执行日志
+            logs_deleted = db.query(ExecutionLog).filter(
+                ExecutionLog.task_id == task_id
+            ).delete()
+            deleted_counts['logs'] = logs_deleted
+            
+            # 2c. 删除任务记录
+            task = db.query(GenerationTask).filter(
+                GenerationTask.id == task_id
+            ).first()
+            if task:
+                db.delete(task)
+                deleted_counts['tasks'] = 1
+        
+        # 提交所有删除操作
+        db.commit()
+        
+        return DeleteReportResponse(
+            success=True,
+            message=f"成功删除报告 {report_id} 及其关联数据",
+            deleted_items=deleted_counts
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"删除报告失败: {str(e)}"
+        )
 
 
 @router.get("/{report_id}/download")
@@ -721,10 +843,10 @@ async def convert_report_to_word(
         raise HTTPException(status_code=404, detail="Report not found")
     
     # Only allow conversion for successful reports
-    if report.status != ReportStatus.SUCCESS:
+    if report.status != 'success':
         raise HTTPException(
             status_code=400, 
-            detail=f"Cannot convert report with status '{report.status.value}'. Only successful reports can be converted."
+            detail=f"Cannot convert report with status '{report.status}'. Only successful reports can be converted."
         )
     
     # Check if report has content
@@ -785,42 +907,66 @@ async def get_task_status(
     db: Session = Depends(get_db)
 ):
     """Get task execution status and variable details"""
-    task = db.query(GenerationTask).filter(GenerationTask.id == task_id).first()
+    # 使用原生SQL查询避免枚举转换问题
+    from sqlalchemy import text
     
-    if not task:
+    # 查询任务
+    task_query = text("""
+        SELECT id, template_id, status, inputs_json, started_at, finished_at, created_at
+        FROM generation_tasks
+        WHERE id = :task_id
+    """)
+    task_result = db.execute(task_query, {"task_id": task_id}).fetchone()
+    
+    if not task_result:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    # Get all variable execution records
-    variables = db.query(GenerationTaskVariable).filter(
-        GenerationTaskVariable.task_id == task_id
-    ).all()
+    # 查询变量
+    vars_query = text("""
+        SELECT variable_name, source, status, started_at, finished_at, 
+               duration_ms, error_message, result_preview
+        FROM generation_task_variables
+        WHERE task_id = :task_id
+        ORDER BY id
+    """)
+    vars_result = db.execute(vars_query, {"task_id": task_id}).fetchall()
     
-    # Get report if exists
-    report = db.query(Report).filter(Report.task_id == task_id).first()
+    # 查询报告
+    report_query = text("""
+        SELECT id FROM reports WHERE task_id = :task_id
+    """)
+    report_result = db.execute(report_query, {"task_id": task_id}).fetchone()
     
+    # 构建变量详情列表
     variable_details = [
         TaskVariableDetail(
-            variable_name=var.variable_name,
-            source=var.source.value,
-            status=VariableStatusEnum(var.status.value),
-            started_at=var.started_at,
-            finished_at=var.finished_at,
-            duration_ms=var.duration_ms,
-            error_message=var.error_message,
-            result_preview=var.result_preview
+            variable_name=var[0],
+            source=var[1],  # 直接使用字符串值
+            status=VariableStatusEnum(var[2]),  # status 值
+            started_at=var[3],
+            finished_at=var[4],
+            duration_ms=var[5],
+            error_message=var[6],
+            result_preview=var[7]
         )
-        for var in variables
+        for var in vars_result
     ]
     
+    # 解析JSON字段
+    import json
+    inputs_json = task_result[3]
+    if isinstance(inputs_json, str):
+        inputs_json = json.loads(inputs_json)
+    
     return TaskStatusResponse(
-        task_id=task.id,
-        template_id=task.template_id,
-        status=ReportStatusEnum(task.status.value),
-        inputs_json=task.inputs_json,
-        started_at=task.started_at,
-        finished_at=task.finished_at,
-        created_at=task.created_at,
-        report_id=report.id if report else None,
+        task_id=task_result[0],
+        template_id=task_result[1],
+        status=ReportStatusEnum(task_result[2]),  # status 值
+        inputs_json=inputs_json,
+        started_at=task_result[4],
+        finished_at=task_result[5],
+        created_at=task_result[6],
+        report_id=report_result[0] if report_result else None,
         variables=variable_details
     )
 
@@ -843,32 +989,32 @@ async def cancel_task(
         raise HTTPException(status_code=404, detail="Task not found")
     
     # Check if task can be cancelled
-    if task.status not in [ReportStatus.PENDING, ReportStatus.RUNNING]:
+    if task.status not in ['pending', 'running']:
         raise HTTPException(
             status_code=400, 
-            detail=f"Cannot cancel task in status: {task.status.value}"
+            detail=f"Cannot cancel task in status: {task.status}"
         )
     
     # Set cancellation flag in execution context
     ExecutionContext.set_cancellation_flag(task_id)
     
     # Update task status
-    task.status = ReportStatus.CANCELLED
+    task.status = 'cancelled'
     task.finished_at = datetime.utcnow()
     
     # Update report status to CANCELLED
     report = db.query(Report).filter(Report.task_id == task_id).first()
     if report:
-        report.status = ReportStatus.CANCELLED
+        report.status = 'cancelled'
     
     # Update running variables to cancelled
     running_vars = db.query(GenerationTaskVariable).filter(
         GenerationTaskVariable.task_id == task_id,
-        GenerationTaskVariable.status == VariableStatusType.RUNNING
+        GenerationTaskVariable.status == 'running'
     ).all()
     
     for var in running_vars:
-        var.status = VariableStatusType.CANCELLED
+        var.status = 'cancelled'
         var.finished_at = datetime.utcnow()
         if var.started_at:
             var.duration_ms = int((var.finished_at - var.started_at).total_seconds() * 1000)
@@ -924,9 +1070,9 @@ async def retry_variable(
     # Allow retry for FAILED, CANCELLED, and stuck PENDING (no started_at or started > 5 min ago)
     can_retry = False
     
-    if var.status in [VariableStatusType.FAILED, VariableStatusType.CANCELLED]:
+    if var.status in ['failed', 'cancelled']:
         can_retry = True
-    elif var.status == VariableStatusType.PENDING:
+    elif var.status == 'pending':
         # Allow retry if stuck in PENDING (task might be lost due to server restart)
         if var.started_at is None:
             can_retry = True
@@ -939,11 +1085,11 @@ async def retry_variable(
     if not can_retry:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot retry variable in status: {var.status.value}. Variable is currently running or completed."
+            detail=f"Cannot retry variable in status: {var.status}. Variable is currently running or completed."
         )
     
     # Reset variable status
-    var.status = VariableStatusType.PENDING
+    var.status = 'pending'
     var.started_at = None
     var.finished_at = None
     var.duration_ms = None
@@ -979,12 +1125,12 @@ async def retry_variable_execution(task_id: str, variable_name: str):
         # Get task and template
         task = db_session.query(GenerationTask).filter_by(id=task_id).first()
         if not task:
-            print(f"Task {task_id} not found for retry")
+            logger.error(f"Task {task_id} not found for retry")
             return
         
         template = db_session.query(Template).filter_by(id=task.template_id).first()
         if not template:
-            print(f"Template {task.template_id} not found for retry")
+            logger.error(f"Template {task.template_id} not found for retry")
             return
         
         # Parse metadata
@@ -996,7 +1142,7 @@ async def retry_variable_execution(task_id: str, variable_name: str):
         
         variable_meta = metadata.get(variable_name)
         if not variable_meta:
-            print(f"Variable {variable_name} not found in metadata")
+            logger.error(f"Variable {variable_name} not found in metadata")
             return
         
         # Build context with existing successful variables
@@ -1010,7 +1156,7 @@ async def retry_variable_execution(task_id: str, variable_name: str):
         # Load successful variables into context
         successful_vars = db_session.query(GenerationTaskVariable).filter(
             GenerationTaskVariable.task_id == task_id,
-            GenerationTaskVariable.status == VariableStatusType.SUCCESS
+            GenerationTaskVariable.status == 'success'
         ).all()
         
         for var in successful_vars:
@@ -1033,7 +1179,7 @@ async def retry_variable_execution(task_id: str, variable_name: str):
             variable_name=variable_name
         ).first()
         
-        var_record.status = VariableStatusType.RUNNING
+        var_record.status = 'running'
         var_record.started_at = datetime.utcnow()
         db_session.commit()
         
@@ -1050,7 +1196,7 @@ async def retry_variable_execution(task_id: str, variable_name: str):
         result = await executor.execute()
         
         # Update result
-        var_record.status = VariableStatusType(result.status.value)
+        var_record.status = result.status.value  # 直接使用枚举的字符串值
         var_record.finished_at = datetime.utcnow()
         var_record.duration_ms = result.duration_ms
         
@@ -1069,11 +1215,11 @@ async def retry_variable_execution(task_id: str, variable_name: str):
             
             # Check if all variables are now successful
             all_vars = db_session.query(GenerationTaskVariable).filter_by(task_id=task_id).all()
-            all_success = all(v.status == VariableStatusType.SUCCESS for v in all_vars)
+            all_success = all(v.status == 'success' for v in all_vars)
             
             if all_success:
                 # Continue with report generation
-                print(f"All variables successful after retry, continuing with report generation for task {task_id}")
+                logger.info(f"All variables successful after retry, continuing with report generation for task {task_id}")
                 # Re-trigger report generation
                 await continue_report_generation(task_id, context, db_session)
         else:
@@ -1088,9 +1234,7 @@ async def retry_variable_execution(task_id: str, variable_name: str):
             )
     
     except Exception as e:
-        print(f"Error during variable retry: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error during variable retry: {str(e)}", exc_info=True)
         
         # Update variable to failed
         try:
@@ -1099,7 +1243,7 @@ async def retry_variable_execution(task_id: str, variable_name: str):
                 variable_name=variable_name
             ).first()
             if var_record:
-                var_record.status = VariableStatusType.FAILED
+                var_record.status = 'failed'
                 var_record.error_message = str(e)
                 var_record.finished_at = datetime.utcnow()
                 db_session.commit()
@@ -1110,7 +1254,7 @@ async def retry_variable_execution(task_id: str, variable_name: str):
                     error_message=str(e)
                 )
         except Exception as commit_error:
-            print(f"Failed to update variable status: {commit_error}")
+            logger.error(f"Failed to update variable status: {commit_error}", exc_info=True)
     
     finally:
         db_session.close()
@@ -1132,7 +1276,7 @@ async def continue_report_generation(task_id: str, context: ExecutionContext, db
         # This is important because the context might have been created before the retry
         successful_vars = db_session.query(GenerationTaskVariable).filter(
             GenerationTaskVariable.task_id == task_id,
-            GenerationTaskVariable.status == VariableStatusType.SUCCESS
+            GenerationTaskVariable.status == 'success'
         ).all()
         
         for var in successful_vars:
@@ -1160,7 +1304,7 @@ async def continue_report_generation(task_id: str, context: ExecutionContext, db
                 template_id=task.template_id,
                 task_id=task_id,
                 title=f"Report for {template.name}",
-                status=ReportStatus.SUCCESS,
+                status='success',
                 markdown_content=markdown_content,
                 cost_usd=0,
                 duration_ms=duration_ms
@@ -1170,12 +1314,12 @@ async def continue_report_generation(task_id: str, context: ExecutionContext, db
             # Update existing report
             report_id = report.id
             report.title = f"Report for {template.name}"
-            report.status = ReportStatus.SUCCESS
+            report.status = 'success'
             report.markdown_content = markdown_content
             report.duration_ms = duration_ms
         
         # Update task status
-        task.status = ReportStatus.SUCCESS
+        task.status = 'success'
         task.finished_at = datetime.utcnow()
         db_session.commit()
         
@@ -1190,18 +1334,16 @@ async def continue_report_generation(task_id: str, context: ExecutionContext, db
         )
     
     except Exception as e:
-        print(f"Error continuing report generation: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error continuing report generation: {str(e)}", exc_info=True)
         
         # Mark task as failed
-        task.status = ReportStatus.FAILED
+        task.status = 'failed'
         task.finished_at = datetime.utcnow()
         
         # Update report status to FAILED
         report = db_session.query(Report).filter(Report.task_id == task_id).first()
         if report:
-            report.status = ReportStatus.FAILED
+            report.status = 'failed'
         
         db_session.commit()
         

@@ -22,6 +22,7 @@ class VariableSourceType(str, enum.Enum):
     API = "api"
     AI_GENERATION = "ai_generation"
     SYSTEM = "system"
+    CONSTANT = "constant"
     IMAGE = "image"
     VISION_AI = "vision_ai"
 
@@ -63,7 +64,7 @@ class GenerationTask(Base):
     
     id = Column(String(50), primary_key=True)
     template_id = Column(String(50), nullable=False)
-    status = Column(SQLEnum(ReportStatus), nullable=False, default=ReportStatus.PENDING)
+    status = Column(String(50), nullable=False, default='pending')  # 改为字符串避免枚举问题
     inputs_json = Column(JSON, nullable=False)
     started_at = Column(DateTime(timezone=True))
     finished_at = Column(DateTime(timezone=True))
@@ -78,8 +79,8 @@ class GenerationTaskVariable(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     task_id = Column(String(50), nullable=False, index=True)
     variable_name = Column(String(100), nullable=False)
-    source = Column(SQLEnum(VariableSourceType), nullable=False)
-    status = Column(SQLEnum(VariableStatusType), nullable=False, default=VariableStatusType.PENDING)
+    source = Column(String(50), nullable=False)  # 改为字符串避免枚举问题
+    status = Column(String(50), nullable=False, default='pending')  # 改为字符串避免枚举问题
     started_at = Column(DateTime(timezone=True))
     finished_at = Column(DateTime(timezone=True))
     duration_ms = Column(Integer)
@@ -96,7 +97,7 @@ class Report(Base):
     template_id = Column(String(50), nullable=False)
     task_id = Column(String(50), unique=True)
     title = Column(String(200))
-    status = Column(SQLEnum(ReportStatus), nullable=False)
+    status = Column(String(50), nullable=False)  # 改为字符串避免枚举问题
     markdown_content = Column(Text, nullable=False)
     cost_usd = Column(Numeric(10, 4))
     duration_ms = Column(Integer)

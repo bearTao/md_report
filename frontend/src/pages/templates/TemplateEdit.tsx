@@ -21,6 +21,7 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   WarningOutlined,
+  BugOutlined,
 } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import loader from '@monaco-editor/loader';
@@ -133,6 +134,16 @@ content:
     placeholder: 请输入内容`);
     }
   }, [template, form, isNew]);
+
+  const handleDebug = () => {
+    // 跳转到调试页面，传递当前模板内容和元数据
+    navigate('/debug', {
+      state: {
+        templateContent,
+        metadataYaml,
+      },
+    });
+  };
 
   const handleSubmit = async (values: any) => {
     // 验证YAML
@@ -312,6 +323,12 @@ content:
                 校验模板
               </Button>
             )}
+            <Button
+              icon={<BugOutlined />}
+              onClick={handleDebug}
+            >
+              调测模板
+            </Button>
             <Button onClick={() => navigate('/templates')}>
               取消
             </Button>

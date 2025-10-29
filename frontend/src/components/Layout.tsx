@@ -6,6 +6,7 @@ import {
   SettingOutlined,
   HistoryOutlined,
   DatabaseOutlined,
+  BugOutlined,
 } from '@ant-design/icons';
 
 const { Header, Content, Sider } = AntLayout;
@@ -29,6 +30,11 @@ const Layout = () => {
       key: '/reports',
       icon: <HistoryOutlined />,
       label: '报告历史',
+    },
+    {
+      key: '/debug',
+      icon: <BugOutlined />,
+      label: '调试测试',
     },
     {
       key: '/settings',

@@ -15,6 +15,8 @@ class WSEventType(str, Enum):
     TASK_COMPLETED = "task_completed"
     TASK_FAILED = "task_failed"
     TASK_CANCELLED = "task_cancelled"
+    RENDER_STARTED = "render_started"
+    RENDER_COMPLETED = "render_completed"
     RENDER_FAILED = "render_failed"
     VARIABLE_STARTED = "variable_started"
     VARIABLE_PROGRESS = "variable_progress"
@@ -97,6 +99,21 @@ class WebSocketManager:
         await self.send_event(task_id, WSEventType.TASK_FAILED, {
             "error": error,
             "summary": summary
+        })
+    
+    async def broadcast_render_started(self, task_id: str):
+        """Broadcast template render started event"""
+        await self.send_event(task_id, WSEventType.RENDER_STARTED, {
+            "task_id": task_id,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+    
+    async def broadcast_render_completed(self, task_id: str, output_size: int):
+        """Broadcast template render completed event"""
+        await self.send_event(task_id, WSEventType.RENDER_COMPLETED, {
+            "task_id": task_id,
+            "output_size": output_size,
+            "timestamp": datetime.utcnow().isoformat()
         })
     
     async def broadcast_render_failed(self, task_id: str, error: Dict[str, Any]):

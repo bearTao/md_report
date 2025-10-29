@@ -158,16 +158,16 @@ class ExecutionContext:
         return template_str
         
     def interpolate_dict(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Recursively interpolate variables in dictionary"""
+        """Recursively interpolate variables in dictionary with type preservation"""
         result = {}
         for key, value in data.items():
             if isinstance(value, str):
-                result[key] = self.interpolate_string(value)
+                result[key] = self._interpolate_with_type_preservation(value)
             elif isinstance(value, dict):
                 result[key] = self.interpolate_dict(value)
             elif isinstance(value, list):
                 result[key] = [
-                    self.interpolate_string(v) if isinstance(v, str) 
+                    self._interpolate_with_type_preservation(v) if isinstance(v, str) 
                     else self.interpolate_dict(v) if isinstance(v, dict)
                     else v
                     for v in value
@@ -175,6 +175,70 @@ class ExecutionContext:
             else:
                 result[key] = value
         return result
+    
+    def _interpolate_with_type_preservation(self, value: str) -> Any:
+        """
+        Interpolate string with smart type preservation
+        
+        Rules:
+        - Pure variable reference: "{{var}}" → preserve original type
+        - Template string: "prefix {{var}} suffix" → return string
+        - Multiple variables: "{{var1}} {{var2}}" → return string
+        
+        Examples:
+            "{{count}}" where count=15 → 15 (int)
+            "Total: {{count}}" where count=15 → "Total: 15" (str)
+            "{{name}}" where name="Alice" → "Alice" (str)
+            "{{active}}" where active=True → True (bool)
+        """
+        # Pattern to match pure variable reference (no surrounding text)
+        pure_var_pattern = r'^\s*\{\{([^}]+)\}\}\s*$'
+        match = re.match(pure_var_pattern, value)
+        
+        if match:
+            # Pure variable reference - preserve type
+            var_expr = match.group(1).strip()
+            
+            # If has filters, must return string
+            if '|' in var_expr:
+                return self.interpolate_string(value)
+            
+            # Get the actual value with type preservation
+            try:
+                if '.' in var_expr:
+                    # Nested attribute access
+                    parts = var_expr.split('.')
+                    base_var = parts[0]
+                    
+                    if base_var not in self.variables:
+                        raise DependencyError(f"Variable '{base_var}' not found")
+                    
+                    result = self.variables[base_var]
+                    for attr in parts[1:]:
+                        if isinstance(result, dict):
+                            if attr not in result:
+                                raise DependencyError(f"Attribute '{attr}' not found in {base_var}")
+                            result = result[attr]
+                        elif hasattr(result, attr):
+                            result = getattr(result, attr)
+                        else:
+                            raise DependencyError(f"Attribute '{attr}' not accessible in {base_var}")
+                    
+                    return result  # Preserve original type
+                else:
+                    # Simple variable
+                    if var_expr not in self.variables:
+                        raise DependencyError(f"Variable '{var_expr}' not found")
+                    
+                    return self.variables[var_expr]  # Preserve original type
+            except Exception as e:
+                # If any error, fall back to string interpolation
+                import logging
+                logging.warning(f"Type preservation failed for '{value}': {e}. Using string interpolation.")
+                return self.interpolate_string(value)
+        else:
+            # Not a pure variable - it's a template string
+            return self.interpolate_string(value)
         
     def get_all_variables(self) -> Dict[str, Any]:
         """Get all variables for template rendering"""

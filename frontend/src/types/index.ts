@@ -47,7 +47,7 @@ export interface UpdateTemplateRequest {
 }
 
 // 变量元数据类型
-export type VariableSource = 'user_input' | 'sql' | 'api' | 'ai_generation' | 'system' | 'image' | 'vision_ai';
+export type VariableSource = 'user_input' | 'sql' | 'api' | 'ai_generation' | 'system' | 'constant' | 'image' | 'vision_ai';
 export type VariableType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'image';
 
 export interface VariableMetadata {
@@ -164,6 +164,17 @@ export interface ReportListItem {
 export interface ReportListResponse {
   items: ReportListItem[];
   total: number;
+}
+
+export interface DeleteReportResponse {
+  success: boolean;
+  message: string;
+  deleted_items: {
+    reports: number;
+    tasks: number;
+    variables: number;
+    logs: number;
+  };
 }
 
 // WebSocket 事件类型
@@ -341,5 +352,21 @@ export interface DBConnectionTestResponse {
   success: boolean;
   message: string;
   details?: Record<string, any>;
+}
+
+// 执行日志类型
+export interface ExecutionLogItem {
+  id: number;
+  task_id: string;
+  variable_name: string | null;
+  level: string;
+  message: string;
+  context: any;
+  created_at: string;
+}
+
+export interface ExecutionLogListResponse {
+  logs: ExecutionLogItem[];
+  total: number;
 }
 

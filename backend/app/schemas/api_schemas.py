@@ -60,7 +60,7 @@ class TemplateListResponse(BaseModel):
 # Report generation schemas
 class ReportGenerateRequest(BaseModel):
     template_id: str = Field(..., description="Template ID")
-    inputs: Dict[str, Any] = Field(..., description="User input values")
+    inputs: Dict[str, Any] = Field(..., description="User input values (supports nested structure for templates with includes)")
 
 
 class ReportGenerateResponse(BaseModel):
@@ -290,4 +290,36 @@ class TemplateValidationResponse(BaseModel):
     """Template validation result"""
     valid: bool
     issues: List[ValidationIssue]
+
+
+# Debug schemas
+class DebugRenderRequest(BaseModel):
+    """Request for template debug rendering"""
+    template_content: str = Field(..., description="Jinja2 template content to render")
+    metadata_yaml: str = Field(..., description="Variable metadata in YAML format")
+    user_inputs: Dict[str, Any] = Field(default_factory=dict, description="User input values")
+
+
+class DebugVariableResult(BaseModel):
+    """Result of a single variable execution in debug mode"""
+    variable_name: str
+    status: str
+    value: Any
+    duration_ms: int
+    error_message: Optional[str] = None
+
+
+class DebugRenderResponse(BaseModel):
+    """Response for template debug rendering"""
+    success: bool
+    rendered_markdown: Optional[str] = None
+    variables: List[DebugVariableResult]
+    error: Optional[str] = None
+
+
+class DeleteReportResponse(BaseModel):
+    """删除报告响应"""
+    success: bool
+    message: str
+    deleted_items: Dict[str, int] = Field(..., description="各表删除的记录数")
 

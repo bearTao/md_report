@@ -7,12 +7,14 @@ from app.core.models import (
     VariableStatus
 )
 from app.services.context import ExecutionContext
+from app.services.execution_logger import execution_logger
 from app.executors.base import BaseVariableExecutor
 from app.executors.user_input import UserInputExecutor
 from app.executors.system import SystemExecutor
 from app.executors.sql import SqlExecutor
 from app.executors.api import ApiExecutor
 from app.executors.ai import AiExecutor
+from app.executors.constant import ConstantExecutor
 from app.executors.image import ImageExecutor
 from app.executors.vision_ai import VisionAiExecutor
 from app.core.exceptions import DependencyError
@@ -90,6 +92,8 @@ class ExecutionScheduler:
             return AiExecutor(var_name, metadata, context, 
                             openai_api_key=self.openai_api_key,
                             openai_api_base=self.openai_api_base)
+        elif source == VariableSource.CONSTANT:
+            return ConstantExecutor(var_name, metadata, context)
         elif source == VariableSource.IMAGE:
             return ImageExecutor(var_name, metadata, context)
         elif source == VariableSource.VISION_AI:
@@ -126,6 +130,11 @@ class ExecutionScheduler:
         """
         Execute all variables in context respecting dependencies
         
+        Execution phases:
+        1. Pre-execute all CONSTANT variables (auto-injected, no dependencies needed)
+        2. Build DAG for non-constant variables
+        3. Execute non-constant variables in topological order
+        
         Args:
             context: Execution context with metadata and inputs
             progress_callback: Optional callback for progress updates
@@ -134,46 +143,102 @@ class ExecutionScheduler:
         Returns:
             Dictionary of all execution results
         """
-        # Build DAG
-        dag = self.build_dag(context.metadata)
-        
-        # Get execution batches
-        batches = self.get_execution_batches(dag)
-        
         all_results = {}
         
-        # Execute batches sequentially, variables within batch in parallel
-        for batch_idx, batch in enumerate(batches):
-            # Notify batch start
-            for var_name in batch:
+        # Phase 1: Pre-execute all CONSTANT variables
+        execution_logger.info(
+            context.task_id,
+            "Pre-executing constant variables for auto-injection"
+        )
+        
+        for var_name, metadata in context.metadata.items():
+            if metadata.source == VariableSource.CONSTANT:
+                # Notify start if callback provided
                 if progress_callback:
                     await progress_callback(var_name, VariableStatus.RUNNING, None)
-            
-            # Execute batch
-            batch_results = await self.execute_batch(batch, context)
-            
-            # Process results
-            for result in batch_results:
-                all_results[result.variable_name] = result
                 
-                # Notify completion or failure (this is the key!)
-                if progress_callback:
-                    await progress_callback(
-                        result.variable_name,
-                        result.status,  # This will be FAILED if execution failed
-                        result
-                    )
-                
-                # Stop execution if required variable failed
-                if result.status == VariableStatus.FAILED:
-                    metadata = context.metadata[result.variable_name]
-                    if metadata.required and metadata.default is None:
-                        # Fail fast for required variables without default
-                        raise Exception(
-                            f"Required variable '{result.variable_name}' failed: {result.error}"
+                try:
+                    executor = ConstantExecutor(var_name, metadata, context)
+                    result = await executor.execute()
+                    all_results[var_name] = result
+                    
+                    # Notify completion
+                    if progress_callback:
+                        await progress_callback(var_name, result.status, result)
+                    
+                    # Log warning if constant failed but continue execution
+                    if result.status == VariableStatus.FAILED:
+                        execution_logger.warning(
+                            context.task_id,
+                            f"Constant variable '{var_name}' failed: {result.error}",
+                            variable_name=var_name
                         )
-                    # For optional variables or those with defaults, continue execution
-                    # The frontend will see the FAILED status via WebSocket
+                except Exception as e:
+                    execution_logger.error(
+                        context.task_id,
+                        f"Failed to pre-execute constant '{var_name}': {str(e)}",
+                        variable_name=var_name
+                    )
+                    # Create failed result but continue
+                    result = VariableExecutionResult(
+                        variable_name=var_name,
+                        status=VariableStatus.FAILED,
+                        error=str(e)
+                    )
+                    all_results[var_name] = result
+                    if progress_callback:
+                        await progress_callback(var_name, result.status, result)
+        
+        # Phase 2: Filter non-constant variables for DAG
+        non_constant_metadata = {
+            name: meta 
+            for name, meta in context.metadata.items() 
+            if meta.source != VariableSource.CONSTANT
+        }
+        
+        execution_logger.info(
+            context.task_id,
+            f"Building DAG for {len(non_constant_metadata)} non-constant variables"
+        )
+        
+        # Phase 3: Build DAG and execute non-constant variables
+        if non_constant_metadata:
+            # Build DAG (only for non-constant variables)
+            dag = self.build_dag(non_constant_metadata)
+            
+            # Get execution batches
+            batches = self.get_execution_batches(dag)
+            
+            # Execute batches sequentially, variables within batch in parallel
+            for batch_idx, batch in enumerate(batches):
+                # Notify batch start
+                for var_name in batch:
+                    if progress_callback:
+                        await progress_callback(var_name, VariableStatus.RUNNING, None)
+                
+                # Execute batch
+                batch_results = await self.execute_batch(batch, context)
+                
+                # Process results
+                for result in batch_results:
+                    all_results[result.variable_name] = result
+                    
+                    # Notify completion or failure
+                    if progress_callback:
+                        await progress_callback(
+                            result.variable_name,
+                            result.status,
+                            result
+                        )
+                    
+                    # Stop execution if required variable failed
+                    if result.status == VariableStatus.FAILED:
+                        metadata = context.metadata[result.variable_name]
+                        if metadata.required and metadata.default is None:
+                            # Fail fast for required variables without default
+                            raise Exception(
+                                f"Required variable '{result.variable_name}' failed: {result.error}"
+                            )
         
         return all_results
 

@@ -11,6 +11,7 @@ import ReportProgress from './pages/generate/ReportProgress';
 import ReportPreview from './pages/reports/ReportPreview';
 import ReportList from './pages/reports/ReportList';
 import TaskLogs from './pages/logs/TaskLogs';
+import DebugTest from './pages/debug/DebugTest';
 import AISettings from './pages/settings/AISettings';
 import DBSettings from './pages/settings/DBSettings';
 
@@ -39,6 +40,7 @@ function App() {
               <Route path="reports" element={<ReportList />} />
               <Route path="reports/:reportId" element={<ReportPreview />} />
               <Route path="logs/:taskId" element={<TaskLogs />} />
+              <Route path="debug" element={<DebugTest />} />
               <Route path="settings/ai" element={<AISettings />} />
               <Route path="settings/db" element={<DBSettings />} />
             </Route>

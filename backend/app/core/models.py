@@ -1,5 +1,5 @@
 """Core data models for variable execution"""
-from typing import Any, Dict, List, Optional, Literal
+from typing import Any, Dict, List, Optional, Literal, Union
 from enum import Enum
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,7 @@ class VariableSource(str, Enum):
     API = "api"
     AI_GENERATION = "ai_generation"
     SYSTEM = "system"
+    CONSTANT = "constant"  # Fixed constant values
     IMAGE = "image"
     VISION_AI = "vision_ai"
 
@@ -43,15 +44,26 @@ class SqlConfig(BaseModel):
 
 
 class ApiConfig(BaseModel):
-    """API variable configuration"""
+    """API variable configuration - Enhanced with JMESPath and retry support"""
     endpoint: str
     method: str = "GET"
     headers: Optional[Dict[str, str]] = {}
-    parameters: Optional[Dict[str, str]] = {}
+    parameters: Optional[Dict[str, Any]] = {}  # Changed from Dict[str, str] to support any type
     body: Optional[Dict[str, Any]] = {}
-    response_mapping: Dict[str, str]
+    
+    # Response mapping: supports three modes
+    # - None or {}: return full response
+    # - str: extract single path (returns any type: object/array/string/number)
+    # - Dict[str, str]: map multiple fields to new object
+    response_mapping: Optional[Union[str, Dict[str, str]]] = None
+    
     cache_ttl: Optional[int] = None
     timeout: Optional[int] = 10
+    
+    # Retry configuration
+    retry_count: Optional[int] = 0  # Number of retries, 0 means no retry
+    retry_status_codes: Optional[List[int]] = None  # HTTP status codes to retry on
+    retry_backoff: Optional[float] = 1.0  # Backoff factor in seconds
 
 
 class AiConfig(BaseModel):
@@ -110,6 +122,9 @@ class VariableMetadata(BaseModel):
     default: Optional[Any] = None
     dependencies: Optional[List[str]] = []
     schema: Optional[Dict[str, Any]] = None
+    
+    # For constant variables: the fixed value
+    value: Optional[Any] = None
     
     # Source-specific configs
     sql_config: Optional[SqlConfig] = None
