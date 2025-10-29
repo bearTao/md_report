@@ -264,6 +264,8 @@ export interface TaskVariableDetail {
   duration_ms: number | null;
   error_message: string | null;
   result_preview: Record<string, any> | null;
+  template_id?: string;
+  template_path?: string;
 }
 
 export interface TaskStatus {
@@ -363,6 +365,8 @@ export interface ExecutionLogItem {
   message: string;
   context: any;
   created_at: string;
+  template_id?: string;
+  template_path?: string;
 }
 
 export interface ExecutionLogListResponse {

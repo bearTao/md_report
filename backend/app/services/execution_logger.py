@@ -23,7 +23,9 @@ class ExecutionLogger:
         message: str,
         level: str = "INFO",
         variable_name: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
+        template_id: Optional[str] = None,
+        template_path: Optional[str] = None
     ):
         """
         Write a log entry
@@ -34,6 +36,8 @@ class ExecutionLogger:
             level: Log level (DEBUG, INFO, WARNING, ERROR)
             variable_name: Variable name (None for task-level logs)
             context: Additional context information (dict)
+            template_id: 所属模板ID
+            template_path: 完整层级路径
         """
         db = SessionLocal()
         try:
@@ -48,7 +52,9 @@ class ExecutionLogger:
                 variable_name=variable_name,
                 level=LogLevel[level_upper],
                 message=message,
-                context_json=context
+                context_json=context,
+                template_id=template_id,
+                template_path=template_path
             )
             db.add(log_entry)
             db.commit()

@@ -135,9 +135,19 @@ class TaskVariableDetail(BaseModel):
     # Allow dict, list, or primitive types for result preview
     # This supports various variable types (objects, arrays, strings, etc.)
     result_preview: Optional[Union[Dict[str, Any], List[Any], str, int, float, bool]]
+    template_id: Optional[str] = None  # 所属模板ID
+    template_path: Optional[str] = None  # 完整层级路径
     
     class Config:
         from_attributes = True
+
+
+class TemplateVariableGroup(BaseModel):
+    """模板变量分组"""
+    template_id: str
+    template_name: Optional[str] = None
+    template_path: str
+    variables: List[TaskVariableDetail]
 
 
 class TaskStatusResponse(BaseModel):
@@ -266,6 +276,8 @@ class ExecutionLogItem(BaseModel):
     message: str
     context: Optional[Dict[str, Any]]
     created_at: datetime
+    template_id: Optional[str] = None  # 所属模板ID
+    template_path: Optional[str] = None  # 完整层级路径
     
     class Config:
         from_attributes = True

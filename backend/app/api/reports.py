@@ -241,6 +241,13 @@ async def execute_report_generation(
     db_session = SessionLocal()
     
     try:
+        # Get template info for path construction
+        from app.models.db_models import Template
+        template = db_session.query(Template).filter_by(id=template_id).first()
+        main_template_name = template.name if template else template_id
+        main_template_path = main_template_name  # 主模板的路径就是它自己的名字
+        
+
         # Detect if user_inputs is nested structure (for templates with includes)
         # Nested format: {"template_id": {"var": "value"}}
         # Flat format: {"var": "value"}
@@ -327,6 +334,10 @@ async def execute_report_generation(
             metadata=parsed_metadata
         )
         
+        # 设置主模板的template信息
+        context.template_id = template_id
+        context.template_path = main_template_path
+        
         # Create scheduler
         scheduler = ExecutionScheduler(
             openai_api_key=openai_api_key,
@@ -338,13 +349,19 @@ async def execute_report_generation(
             # Save variable execution record
             var_meta = parsed_metadata[var_name]
             
+            # 从context获取template信息（主模板或子模板）
+            current_template_id = getattr(context, 'template_id', template_id)
+            current_template_path = getattr(context, 'template_path', main_template_path)
+            
             if status == VariableStatus.RUNNING:
                 var_record = GenerationTaskVariable(
                     task_id=task_id,
                     variable_name=var_name,
                     source=var_meta.source.value,  # 直接使用字符串值
                     status='running',  # 直接使用字符串值
-                    started_at=datetime.utcnow()
+                    started_at=datetime.utcnow(),
+                    template_id=current_template_id,
+                    template_path=current_template_path
                 )
                 db_session.add(var_record)
                 db_session.commit()
@@ -359,9 +376,12 @@ async def execute_report_generation(
                 )
             elif status in (VariableStatus.SUCCESS, VariableStatus.FAILED):
                 # Update existing record
+                # 注意：需要同时匹配 task_id, variable_name 和 template_id
+                # 以支持不同模板中的同名变量
                 var_record = db_session.query(GenerationTaskVariable).filter(
                     GenerationTaskVariable.task_id == task_id,
-                    GenerationTaskVariable.variable_name == var_name
+                    GenerationTaskVariable.variable_name == var_name,
+                    GenerationTaskVariable.template_id == current_template_id
                 ).first()
                 
                 if var_record:
@@ -403,8 +423,12 @@ async def execute_report_generation(
                 db_session,
                 nested_user_inputs,  # Pass full nested structure
                 template_id,  # Current template ID
+                task_id,  # 主任务ID
+                main_template_path,  # 主模板路径
                 openai_api_key,
-                openai_api_base
+                openai_api_base,
+                None,  # visited set
+                progress_callback  # 传递 progress_callback 以便记录子模板的变量执行
             )
         except Exception as e:
             logger.error(f"Failed to resolve template includes for task {task_id}: {str(e)}")
@@ -417,8 +441,14 @@ async def execute_report_generation(
             await ws_manager.broadcast_render_started(task_id)
             
             all_variables = context.get_all_variables()
-            # 传入 task_id 以便记录渲染日志到数据库
-            markdown_content = template_renderer.render(resolved_template_content, all_variables, task_id=task_id)
+            # 传入 task_id 和模板信息以便记录渲染日志到数据库
+            markdown_content = template_renderer.render(
+                resolved_template_content, 
+                all_variables, 
+                task_id=task_id,
+                template_id=template_id,
+                template_path=main_template_path
+            )
             
             # 广播渲染完成事件
             await ws_manager.broadcast_render_completed(task_id, len(markdown_content))
@@ -924,7 +954,7 @@ async def get_task_status(
     # 查询变量
     vars_query = text("""
         SELECT variable_name, source, status, started_at, finished_at, 
-               duration_ms, error_message, result_preview
+               duration_ms, error_message, result_preview, template_id, template_path
         FROM generation_task_variables
         WHERE task_id = :task_id
         ORDER BY id
@@ -947,7 +977,9 @@ async def get_task_status(
             finished_at=var[4],
             duration_ms=var[5],
             error_message=var[6],
-            result_preview=var[7]
+            result_preview=var[7],
+            template_id=var[8],      # 添加 template_id
+            template_path=var[9]     # 添加 template_path
         )
         for var in vars_result
     ]
@@ -1058,13 +1090,24 @@ async def retry_variable(
         raise HTTPException(status_code=404, detail="Task not found")
     
     # Get variable
-    var = db.query(GenerationTaskVariable).filter(
+    # 注意：如果有多个模板有同名变量，需要检查是否有歧义
+    vars = db.query(GenerationTaskVariable).filter(
         GenerationTaskVariable.task_id == task_id,
         GenerationTaskVariable.variable_name == variable_name
-    ).first()
+    ).all()
     
-    if not var:
+    if not vars:
         raise HTTPException(status_code=404, detail="Variable not found")
+    
+    if len(vars) > 1:
+        # 有多个同名变量（来自不同模板），需要明确指定
+        template_paths = [v.template_path or '主模板' for v in vars]
+        raise HTTPException(
+            status_code=400, 
+            detail=f"发现多个名为 '{variable_name}' 的变量（位于: {', '.join(template_paths)}），请在前端使用唯一标识符来指定要重试的变量"
+        )
+    
+    var = vars[0]
     
     # Check if variable can be retried
     # Allow retry for FAILED, CANCELLED, and stuck PENDING (no started_at or started > 5 min ago)
@@ -1174,10 +1217,15 @@ async def retry_variable_execution(task_id: str, variable_name: str):
         executor = scheduler.create_executor(variable_name, variable_meta, context)
         
         # Update variable status to running
-        var_record = db_session.query(GenerationTaskVariable).filter_by(
-            task_id=task_id,
-            variable_name=variable_name
+        # 使用 template_id 来确保找到正确的变量（支持同名变量）
+        var_record = db_session.query(GenerationTaskVariable).filter(
+            GenerationTaskVariable.task_id == task_id,
+            GenerationTaskVariable.variable_name == variable_name,
+            GenerationTaskVariable.template_id == var.template_id
         ).first()
+        
+        if not var_record:
+            raise HTTPException(status_code=404, detail="Variable record not found for update")
         
         var_record.status = 'running'
         var_record.started_at = datetime.utcnow()
@@ -1238,9 +1286,11 @@ async def retry_variable_execution(task_id: str, variable_name: str):
         
         # Update variable to failed
         try:
-            var_record = db_session.query(GenerationTaskVariable).filter_by(
-                task_id=task_id,
-                variable_name=variable_name
+            # 使用 template_id 来确保找到正确的变量（支持同名变量）
+            var_record = db_session.query(GenerationTaskVariable).filter(
+                GenerationTaskVariable.task_id == task_id,
+                GenerationTaskVariable.variable_name == variable_name,
+                GenerationTaskVariable.template_id == var.template_id
             ).first()
             if var_record:
                 var_record.status = 'failed'
@@ -1399,7 +1449,9 @@ async def get_task_logs(
             level=log.level.value,
             message=log.message,
             context=log.context_json,
-            created_at=log.created_at
+            created_at=log.created_at,
+            template_id=log.template_id,      # 添加 template_id
+            template_path=log.template_path   # 添加 template_path
         )
         for log in logs
     ]

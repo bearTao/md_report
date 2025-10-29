@@ -87,6 +87,8 @@ class GenerationTaskVariable(Base):
     error_code = Column(String(50))
     error_message = Column(Text)
     result_preview = Column(JSON)
+    template_id = Column(String(50), nullable=True)  # 所属模板ID
+    template_path = Column(String(500), nullable=True)  # 完整层级路径
 
 
 class Report(Base):
@@ -154,4 +156,6 @@ class ExecutionLog(Base):
     message = Column(Text, nullable=False)
     context_json = Column(JSON, nullable=True)  # Additional context information
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    template_id = Column(String(50), nullable=True)  # 所属模板ID
+    template_path = Column(String(500), nullable=True)  # 完整层级路径
 

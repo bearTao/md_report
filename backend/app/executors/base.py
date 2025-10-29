@@ -23,12 +23,18 @@ class BaseVariableExecutor(ABC):
         """
         start_time = time.time()
         
+        # 获取模板信息（如果存在）
+        template_id = getattr(self.context, 'template_id', None)
+        template_path = getattr(self.context, 'template_path', None)
+        
         # Log start of execution
         execution_logger.info(
             self.context.task_id,
             f"Starting execution of variable '{self.variable_name}'",
             variable_name=self.variable_name,
-            context={"source": self.metadata.source.value}
+            context={"source": self.metadata.source.value},
+            template_id=template_id,
+            template_path=template_path
         )
         
         try:
@@ -37,7 +43,9 @@ class BaseVariableExecutor(ABC):
                 execution_logger.warning(
                     self.context.task_id,
                     f"Task cancelled before executing variable '{self.variable_name}'",
-                    variable_name=self.variable_name
+                    variable_name=self.variable_name,
+                    template_id=template_id,
+                    template_path=template_path
                 )
                 raise TaskCancelledException(self.context.task_id, f"Task cancelled before executing variable '{self.variable_name}'")
             
@@ -48,7 +56,9 @@ class BaseVariableExecutor(ABC):
                     self.context.task_id,
                     f"Variable '{self.variable_name}' missing dependencies: {', '.join(missing)}",
                     variable_name=self.variable_name,
-                    context={"missing_dependencies": missing}
+                    context={"missing_dependencies": missing},
+                    template_id=template_id,
+                    template_path=template_path
                 )
                 return VariableExecutionResult(
                     variable_name=self.variable_name,
@@ -64,7 +74,9 @@ class BaseVariableExecutor(ABC):
                 execution_logger.warning(
                     self.context.task_id,
                     f"Task cancelled while executing variable '{self.variable_name}'",
-                    variable_name=self.variable_name
+                    variable_name=self.variable_name,
+                    template_id=template_id,
+                    template_path=template_path
                 )
                 raise TaskCancelledException(self.context.task_id, f"Task cancelled while executing variable '{self.variable_name}'")
             
@@ -81,7 +93,9 @@ class BaseVariableExecutor(ABC):
                 context={
                     "duration_ms": duration_ms,
                     "result_type": type(value).__name__
-                }
+                },
+                template_id=template_id,
+                template_path=template_path
             )
             
             return VariableExecutionResult(
@@ -98,7 +112,9 @@ class BaseVariableExecutor(ABC):
                 self.context.task_id,
                 f"Variable '{self.variable_name}' execution cancelled",
                 variable_name=self.variable_name,
-                context={"duration_ms": duration_ms}
+                context={"duration_ms": duration_ms},
+                template_id=template_id,
+                template_path=template_path
             )
             return VariableExecutionResult(
                 variable_name=self.variable_name,
@@ -119,7 +135,9 @@ class BaseVariableExecutor(ABC):
                     "duration_ms": duration_ms,
                     "error_type": type(e).__name__,
                     "error_message": str(e)
-                }
+                },
+                template_id=template_id,
+                template_path=template_path
             )
             
             # Use default value if available
@@ -128,7 +146,9 @@ class BaseVariableExecutor(ABC):
                     self.context.task_id,
                     f"Using default value for variable '{self.variable_name}' after error",
                     variable_name=self.variable_name,
-                    context={"default_value": str(self.metadata.default)}
+                    context={"default_value": str(self.metadata.default)},
+                    template_id=template_id,
+                    template_path=template_path
                 )
                 self.context.set_variable(self.variable_name, self.metadata.default)
                 return VariableExecutionResult(

@@ -327,8 +327,35 @@ const ReportProgress = () => {
             暂无变量执行记录
           </div>
         ) : (
-          <Timeline>
-            {taskStatus.variables.map((variable: TaskVariableDetail) => (
+          <>
+            {/* 按模板分组显示变量 */}
+            {(() => {
+              // 按 template_path 分组
+              const groupedVariables: Record<string, TaskVariableDetail[]> = {};
+              taskStatus.variables.forEach((variable: TaskVariableDetail) => {
+                const templateKey = variable.template_path || '主模板';
+                if (!groupedVariables[templateKey]) {
+                  groupedVariables[templateKey] = [];
+                }
+                groupedVariables[templateKey].push(variable);
+              });
+
+              return Object.entries(groupedVariables).map(([templatePath, variables]) => (
+                <div key={templatePath} style={{ marginBottom: 24 }}>
+                  <div style={{ 
+                    marginBottom: 16, 
+                    padding: '8px 12px', 
+                    background: '#f0f2f5', 
+                    borderRadius: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}>
+                    <strong style={{ fontSize: 14 }}>📁 {templatePath}</strong>
+                    <Tag color="blue">{variables.length} 个变量</Tag>
+                  </div>
+                  <Timeline>
+                    {variables.map((variable: TaskVariableDetail) => (
               <Timeline.Item
                 key={variable.variable_name}
                 dot={getStatusIcon(variable.status)}
@@ -339,6 +366,11 @@ const ReportProgress = () => {
                       <Space>
                         <strong>{variable.variable_name}</strong>
                         <Tag>{variable.source}</Tag>
+                        {variable.template_path && (
+                          <Tag color="blue" style={{ maxWidth: 200 }} title={variable.template_path}>
+                            {variable.template_path}
+                          </Tag>
+                        )}
                         {getStatusTag(variable.status)}
                         {variable.duration_ms && (
                           <span style={{ color: '#999' }}>
@@ -356,6 +388,11 @@ const ReportProgress = () => {
                       <Descriptions.Item label="数据源">
                         {variable.source}
                       </Descriptions.Item>
+                      {variable.template_path && (
+                        <Descriptions.Item label="所属模板">
+                          <Tag color="blue">{variable.template_path}</Tag>
+                        </Descriptions.Item>
+                      )}
                       <Descriptions.Item label="状态">
                         <Space>
                           {getStatusTag(variable.status)}
@@ -411,42 +448,51 @@ const ReportProgress = () => {
                   </Panel>
                 </Collapse>
               </Timeline.Item>
-            ))}
+                    ))}
+                  </Timeline>
+                </div>
+              ));
+            })()}
             
-            {/* 渲染日志 */}
-            {taskStatus.render_error && (
-              <Timeline.Item color="red" dot={<CloseCircleOutlined />}>
-                <div>
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Space>
-                      <strong>模板渲染</strong>
-                      <Tag color="red">失败</Tag>
-                    </Space>
-                    <div style={{ marginTop: 8, color: '#ff4d4f' }}>
-                      错误: {taskStatus.render_error.error_message}
+            {/* 渲染状态 - 显示在所有变量之后 */}
+            <div style={{ marginTop: 24 }}>
+              <Timeline>
+                {/* 渲染日志 */}
+                {taskStatus.render_error && (
+                  <Timeline.Item color="red" dot={<CloseCircleOutlined />}>
+                    <div>
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space>
+                          <strong>模板渲染</strong>
+                          <Tag color="red">失败</Tag>
+                        </Space>
+                        <div style={{ marginTop: 8, color: '#ff4d4f' }}>
+                          错误: {taskStatus.render_error.error_message}
+                        </div>
+                        {taskStatus.render_error.timestamp && (
+                          <div style={{ color: '#999', fontSize: '12px' }}>
+                            时间: {dayjs(taskStatus.render_error.timestamp).format('YYYY-MM-DD HH:mm:ss')}
+                          </div>
+                        )}
+                      </Space>
                     </div>
-                    {taskStatus.render_error.timestamp && (
-                      <div style={{ color: '#999', fontSize: '12px' }}>
-                        时间: {dayjs(taskStatus.render_error.timestamp).format('YYYY-MM-DD HH:mm:ss')}
-                      </div>
-                    )}
-                  </Space>
-                </div>
-              </Timeline.Item>
-            )}
-            
-            {/* 渲染成功提示 */}
-            {isCompleted && !taskStatus.render_error && taskStatus.variables.length > 0 && (
-              <Timeline.Item color="green" dot={<CheckCircleOutlined />}>
-                <div>
-                  <Space>
-                    <strong>模板渲染</strong>
-                    <Tag color="green">成功</Tag>
-                  </Space>
-                </div>
-              </Timeline.Item>
-            )}
-          </Timeline>
+                  </Timeline.Item>
+                )}
+                
+                {/* 渲染成功提示 */}
+                {isCompleted && !taskStatus.render_error && taskStatus.variables.length > 0 && (
+                  <Timeline.Item color="green" dot={<CheckCircleOutlined />}>
+                    <div>
+                      <Space>
+                        <strong>模板渲染</strong>
+                        <Tag color="green">成功</Tag>
+                      </Space>
+                    </div>
+                  </Timeline.Item>
+                )}
+              </Timeline>
+            </div>
+          </>
         )}
       </Card>
     </div>
