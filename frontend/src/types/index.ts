@@ -130,6 +130,7 @@ export interface VisionAiConfig {
 export interface GenerateReportRequest {
   template_id: string;
   inputs: Record<string, any>;
+  report_name?: string;  // 可选的报告名称
 }
 
 export interface GenerateReportResponse {
@@ -175,6 +176,10 @@ export interface DeleteReportResponse {
     variables: number;
     logs: number;
   };
+}
+
+export interface UpdateReportRequest {
+  title: string;
 }
 
 // WebSocket 事件类型
@@ -268,7 +273,7 @@ export interface TaskVariableDetail {
   template_path?: string;
 }
 
-export interface TaskStatus {
+export interface TaskStatusResponse {
   task_id: string;
   template_id: string;
   status: TaskStatus;

@@ -48,16 +48,25 @@ const TemplateList = () => {
 
   const columns = [
     {
+      title: '模板ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 150,
+      render: (text: string) => (
+        <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>{text}</span>
+      ),
+    },
+    {
       title: '模板名称',
       dataIndex: 'name',
       key: 'name',
-      width: '30%',
+      width: '25%',
     },
     {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
-      width: '40%',
+      width: '35%',
       ellipsis: true,
     },
     {
@@ -70,16 +79,15 @@ const TemplateList = () => {
     {
       title: '操作',
       key: 'action',
-      width: '10%',
+      width: 100,
       render: (_: any, record: TemplateListItem) => (
         <Space>
           <Button
             type="link"
             icon={<EditOutlined />}
             onClick={() => navigate(`/templates/${record.id}/edit`)}
-          >
-            编辑
-          </Button>
+            title="编辑"
+          />
           <Popconfirm
             title="确定要删除这个模板吗？"
             onConfirm={() => handleDelete(record.id)}
@@ -90,9 +98,8 @@ const TemplateList = () => {
               type="link"
               danger
               icon={<DeleteOutlined />}
-            >
-              删除
-            </Button>
+              title="删除"
+            />
           </Popconfirm>
         </Space>
       ),

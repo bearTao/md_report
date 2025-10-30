@@ -20,6 +20,7 @@ from app.schemas.api_schemas import (
     ReportResponse, ReportStatusEnum,
     TaskStatusResponse, TaskVariableDetail, VariableStatusEnum,
     ReportListResponse, ReportListItem,
+    ReportUpdateRequest,
     TaskCancelRequest, TaskCancelResponse, VariableRetryResponse,
     ExecutionLogItem, ExecutionLogListResponse,
     DeleteReportResponse
@@ -605,11 +606,20 @@ async def generate_report(
     
     # Create report record immediately with PENDING status
     report_id = f"rpt_{uuid.uuid4().hex[:12]}"
+    
+    # 生成报告标题：使用用户提供的名称，或自动生成
+    if request.report_name:
+        report_title = request.report_name
+    else:
+        # 生成默认名称：模板名称 - YYYY-MM-DD HH:mm:ss
+        from datetime import datetime
+        report_title = f"{template.name} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    
     report = Report(
         id=report_id,
         template_id=request.template_id,
         task_id=task_id,
-        title=f"Report - {template.name}",
+        title=report_title,
         status='pending',
         markdown_content=""  # Empty string for pending reports
     )
@@ -732,6 +742,54 @@ async def get_report(
         task_id=report.task_id,
         title=report.title,
         status=ReportStatusEnum(report.status),  # 直接使用字符串值
+        markdown_content=report.markdown_content,
+        cost_usd=float(report.cost_usd) if report.cost_usd else None,
+        duration_ms=report.duration_ms,
+        created_at=created_at,
+        updated_at=updated_at
+    )
+
+
+@router.patch("/{report_id}", response_model=ReportResponse)
+async def update_report(
+    report_id: str,
+    request: ReportUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """更新报告标题"""
+    report = db.query(Report).filter(Report.id == report_id).first()
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    # 更新标题
+    report.title = request.title
+    report.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(report)
+    
+    # 返回更新后的报告信息
+    created_at = report.created_at
+    updated_at = report.updated_at
+    
+    if isinstance(created_at, str):
+        try:
+            created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+        except (ValueError, AttributeError):
+            created_at = datetime.utcnow()
+    
+    if isinstance(updated_at, str):
+        try:
+            updated_at = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+        except (ValueError, AttributeError):
+            updated_at = datetime.utcnow()
+    
+    return ReportResponse(
+        id=report.id,
+        template_id=report.template_id,
+        task_id=report.task_id,
+        title=report.title,
+        status=ReportStatusEnum(report.status),
         markdown_content=report.markdown_content,
         cost_usd=float(report.cost_usd) if report.cost_usd else None,
         duration_ms=report.duration_ms,

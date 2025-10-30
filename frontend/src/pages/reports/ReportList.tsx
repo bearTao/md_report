@@ -12,6 +12,7 @@ import {
   message,
   Tooltip,
   Popconfirm,
+  Typography,
 } from 'antd';
 import {
   EyeOutlined,
@@ -21,9 +22,10 @@ import {
   RedoOutlined,
   FileWordOutlined,
   DeleteOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { getReportList, convertReportToWord, deleteReport } from '../../api';
+import { getReportList, convertReportToWord, deleteReport, updateReportTitle } from '../../api';
 import type { ReportListItem } from '../../types';
 
 const { Option } = Select;
@@ -35,6 +37,7 @@ const ReportList = () => {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [templateFilter, setTemplateFilter] = useState<string | undefined>();
   const [convertingReportId, setConvertingReportId] = useState<string | null>(null);
+  const [editingReportId, setEditingReportId] = useState<string | null>(null);
 
   // 获取报告列表
   const { data, isLoading, refetch } = useQuery({
@@ -89,15 +92,69 @@ const ReportList = () => {
     },
   });
 
+  // 更新报告标题 mutation
+  const updateTitleMutation = useMutation({
+    mutationFn: ({ reportId, title }: { reportId: string; title: string }) =>
+      updateReportTitle(reportId, { title }),
+    onSuccess: () => {
+      message.success('标题已更新');
+      refetch(); // 刷新列表
+    },
+    onError: (error: any) => {
+      const errorMsg = error?.response?.data?.detail || '更新失败，请重试';
+      message.error(errorMsg);
+    },
+  });
+
   const columns = [
     {
       title: '报告标题',
       dataIndex: 'title',
       key: 'title',
       render: (text: string, record: ReportListItem) => (
-        <a onClick={() => navigate(`/reports/${record.id}`)}>
-          {text || record.id}
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {editingReportId === record.id ? (
+            <Typography.Text
+              editable={{
+                editing: true,
+                onChange: (newTitle) => {
+                  if (newTitle && newTitle.trim() && newTitle !== text) {
+                    updateTitleMutation.mutate({
+                      reportId: record.id,
+                      title: newTitle.trim(),
+                    });
+                  }
+                  setEditingReportId(null);
+                },
+                onCancel: () => setEditingReportId(null),
+                maxLength: 200,
+              }}
+              style={{ flex: 1 }}
+            >
+              {text || record.id}
+            </Typography.Text>
+          ) : (
+            <>
+              <a 
+                onClick={() => navigate(`/reports/${record.id}`)}
+                style={{ flex: 1 }}
+              >
+                {text || record.id}
+              </a>
+              <Tooltip title="编辑标题">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingReportId(record.id);
+                  }}
+                />
+              </Tooltip>
+            </>
+          )}
+        </div>
       ),
     },
     {

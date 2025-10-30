@@ -61,6 +61,7 @@ class TemplateListResponse(BaseModel):
 class ReportGenerateRequest(BaseModel):
     template_id: str = Field(..., description="Template ID")
     inputs: Dict[str, Any] = Field(..., description="User input values (supports nested structure for templates with includes)")
+    report_name: Optional[str] = Field(None, description="Custom report name (if not provided, auto-generated from template name and timestamp)")
 
 
 class ReportGenerateResponse(BaseModel):
@@ -99,6 +100,11 @@ class ReportListItem(BaseModel):
 class ReportListResponse(BaseModel):
     items: List[ReportListItem]
     total: int
+
+
+class ReportUpdateRequest(BaseModel):
+    """更新报告请求"""
+    title: str = Field(..., description="Report title", min_length=1, max_length=200)
 
 
 # AI Config schemas

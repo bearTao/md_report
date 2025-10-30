@@ -17,6 +17,7 @@ from app.schemas.api_schemas import (
     ReportResponse,
     ReportListItem,
     ReportListResponse,
+    ReportUpdateRequest,
     # AI Config schemas
     AIConfigResponse,
     AIConfigUpdate,
@@ -61,6 +62,7 @@ __all__ = [
     "ReportResponse",
     "ReportListItem",
     "ReportListResponse",
+    "ReportUpdateRequest",
     # AI Config schemas
     "AIConfigResponse",
     "AIConfigUpdate",

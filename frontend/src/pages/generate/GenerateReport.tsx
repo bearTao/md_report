@@ -106,6 +106,12 @@ const GenerateReport = () => {
       return;
     }
 
+    // 提取报告名称（如果提供）
+    const reportName = values.report_name;
+    
+    // 从 values 中移除 report_name，只保留变量值
+    const { report_name, ...variableValues } = values;
+
     // 构建嵌套的 inputs 结构
     let finalInputs: any;
     
@@ -116,7 +122,7 @@ const GenerateReport = () => {
       };
       
       // 分配变量到对应的模板
-      for (const [key, value] of Object.entries(values)) {
+      for (const [key, value] of Object.entries(variableValues)) {
         // key 格式: "template_id__var_name" 或 "var_name"
         if (key.includes('__')) {
           const [templateId, varName] = key.split('__', 2);
@@ -131,12 +137,13 @@ const GenerateReport = () => {
       }
     } else {
       // 没有嵌套模板，使用原来的扁平结构
-      finalInputs = values;
+      finalInputs = variableValues;
     }
 
     generateMutation.mutate({
       template_id: selectedTemplateId,
       inputs: finalInputs,
+      report_name: reportName, // 包含报告名称（可能为 undefined）
     });
   };
 
@@ -281,22 +288,79 @@ const GenerateReport = () => {
                 )}
                 
                 {getUserInputVariables(template).length === 0 && includedTemplates.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '50px 0' }}>
-                    <p>该模板不需要用户输入数据</p>
-                    <Button
-                      type="primary"
-                      onClick={() => handleSubmit({})}
-                      loading={generateMutation.isPending}
+                  <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleSubmit}
+                    style={{ maxWidth: 600, margin: '0 auto' }}
+                  >
+                    <Alert
+                      message="该模板不需要用户输入数据"
+                      type="info"
+                      showIcon
+                      style={{ marginBottom: 16 }}
+                    />
+                    
+                    {/* 报告名称输入框 */}
+                    <Card
+                      title="报告信息"
+                      size="small"
+                      style={{ marginBottom: 16 }}
                     >
-                      直接生成报告
-                    </Button>
-                  </div>
+                      <Form.Item
+                        label="报告名称"
+                        name="report_name"
+                        tooltip="留空将自动生成：模板名称 - 日期时间"
+                      >
+                        <Input
+                          placeholder="留空将自动生成：模板名称 - 日期时间"
+                          maxLength={200}
+                        />
+                      </Form.Item>
+                    </Card>
+
+                    <Form.Item>
+                      <Space>
+                        <Button
+                          type="primary"
+                          htmlType="submit"
+                          loading={generateMutation.isPending}
+                        >
+                          开始生成报告
+                        </Button>
+                        <Button onClick={() => {
+                          setCurrentStep(0);
+                          setSelectedTemplateId(null);
+                        }}>
+                          重新选择模板
+                        </Button>
+                      </Space>
+                    </Form.Item>
+                  </Form>
                 ) : (
                   <Form
                     form={form}
                     layout="vertical"
                     onFinish={handleSubmit}
                   >
+                    {/* 报告名称输入框 */}
+                    <Card
+                      title="报告信息"
+                      size="small"
+                      style={{ marginBottom: 16 }}
+                    >
+                      <Form.Item
+                        label="报告名称"
+                        name="report_name"
+                        tooltip="留空将自动生成：模板名称 - 日期时间"
+                      >
+                        <Input
+                          placeholder="留空将自动生成：模板名称 - 日期时间"
+                          maxLength={200}
+                        />
+                      </Form.Item>
+                    </Card>
+
                     {/* 主模板的变量 */}
                     {getUserInputVariables(template).length > 0 && (
                       <Card

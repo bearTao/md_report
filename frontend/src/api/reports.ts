@@ -3,9 +3,10 @@ import type {
   GenerateReportRequest,
   GenerateReportResponse,
   Report,
-  TaskStatus,
+  TaskStatusResponse,
   ReportListResponse,
   DeleteReportResponse,
+  UpdateReportRequest,
 } from '../types';
 
 // 启动报告生成
@@ -57,8 +58,8 @@ export const convertReportToWord = async (reportId: string): Promise<void> => {
 };
 
 // 获取任务状态
-export const getTaskStatus = async (taskId: string): Promise<TaskStatus> => {
-  const response = await client.get<TaskStatus>(`/api/reports/tasks/${taskId}/status`);
+export const getTaskStatus = async (taskId: string): Promise<TaskStatusResponse> => {
+  const response = await client.get<TaskStatusResponse>(`/api/reports/tasks/${taskId}/status`);
   return response.data;
 };
 
@@ -124,6 +125,15 @@ export const getTaskLogs = async (params: {
 // 删除报告
 export const deleteReport = async (reportId: string): Promise<DeleteReportResponse> => {
   const response = await client.delete<DeleteReportResponse>(`/api/reports/${reportId}`);
+  return response.data;
+};
+
+// 更新报告标题
+export const updateReportTitle = async (
+  reportId: string,
+  data: UpdateReportRequest
+): Promise<Report> => {
+  const response = await client.patch<Report>(`/api/reports/${reportId}`, data);
   return response.data;
 };
 
