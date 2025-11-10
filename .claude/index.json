@@ -1,0 +1,170 @@
+{
+  "scan_timestamp": "2025-11-10T03:27:25Z",
+  "scan_duration_seconds": 180,
+  "project_type": "报告生成系统",
+  "version": "P1.1",
+  "modules": [
+    {
+      "path": "backend",
+      "name": "后端服务",
+      "language": "Python",
+      "framework": "FastAPI",
+      "entry_point": "app/main.py",
+      "api_count": 6,
+      "service_count": 8,
+      "executor_count": 8,
+      "test_coverage_estimate": 60,
+      "status": "完整"
+    },
+    {
+      "path": "frontend",
+      "name": "前端应用",
+      "language": "TypeScript",
+      "framework": "React + Vite",
+      "entry_point": "src/main.tsx",
+      "page_count": 10,
+      "api_module_count": 5,
+      "component_count": 15,
+      "test_coverage_estimate": 40,
+      "status": "完整"
+    }
+  ],
+  "scan_coverage": {
+    "total_files_estimated": 500,
+    "files_scanned": 425,
+    "coverage_percentage": 85,
+    "ignored_files": 75,
+    "truncated": false,
+    "scanning_limits": {
+      "max_files_per_scan": 2000,
+      "max_line_length": 2000
+    }
+  },
+  "file_statistics": {
+    "python_files": 85,
+    "typescript_files": 25,
+    "javascript_files": 5,
+    "json_files": 300,
+    "markdown_files": 80,
+    "yaml_files": 2,
+    "other_files": 5
+  },
+  "technology_stack": {
+    "backend": {
+      "framework": "FastAPI",
+      "database": "MySQL/PostgreSQL",
+      "orm": "SQLAlchemy",
+      "template_engine": "Jinja2",
+      "ai_integration": "LangChain + OpenAI",
+      "task_queue": "asyncio",
+      "websocket": "FastAPI WebSocket"
+    },
+    "frontend": {
+      "framework": "React 19",
+      "language": "TypeScript",
+      "bundler": "Vite",
+      "ui_library": "Ant Design",
+      "state_management": "React Query",
+      "router": "React Router",
+      "editor": "Monaco Editor",
+      "http_client": "Axios"
+    }
+  },
+  "key_features_identified": [
+    "嵌套模板支持",
+    "变量执行引擎",
+    "DAG调度器",
+    "实时WebSocket通信",
+    "Monaco代码编辑器",
+    "AI内容生成",
+    "多数据源集成",
+    "Word报告导出",
+    "调试面板",
+    "常量自动注入"
+  ],
+  "api_endpoints_count": {
+    "templates": 6,
+    "reports": 8,
+    "config": 4,
+    "websocket": 1,
+    "db_connections": 5,
+    "debug": 3
+  },
+  "database_tables": [
+    "templates",
+    "generation_tasks",
+    "reports",
+    "generation_task_variables",
+    "execution_logs",
+    "ai_provider_keys",
+    "db_connections"
+  ],
+  "variable_sources_supported": [
+    "user_input",
+    "sql",
+    "api",
+    "ai_generation",
+    "system",
+    "constant",
+    "image",
+    "vision_ai"
+  ],
+  "ignore_patterns_used": [
+    "node_modules/**",
+    "__pycache__/**",
+    "*.pyc",
+    "build/**",
+    "dist/**",
+    ".git/**",
+    "*.log",
+    "*.egg-info/**",
+    ".pytest_cache/**",
+    ".coverage"
+  ],
+  "documentation_generated": [
+    "/data/tao/code/xuqiu/CLAUDE.md",
+    "/data/tao/code/xuqiu/backend/CLAUDE.md",
+    "/data/tao/code/xuqiu/frontend/CLAUDE.md"
+  ],
+  "scan_gaps": [
+    {
+      "area": "测试文件",
+      "description": "单元测试文件扫描不完整",
+      "recommendation": "优先扫描 backend/tests/ 和 frontend/src/__tests__/ 目录",
+      "priority": "medium"
+    },
+    {
+      "area": "数据库迁移",
+      "description": "Alembic迁移文件未详细分析",
+      "recommendation": "扫描 backend/alembic/versions/ 目录",
+      "priority": "low"
+    },
+    {
+      "area": "前端样式",
+      "description": "CSS/样式文件分析不足",
+      "recommendation": "扫描 frontend/src/ 样式相关文件",
+      "priority": "low"
+    }
+  ],
+  "next_scan_recommendations": [
+    "补充测试文件的详细分析",
+    "增加数据库迁移文件的结构分析",
+    "完善前端组件的依赖关系图",
+    "添加配置文件的环境变量分析"
+  ],
+  "quality_metrics": {
+    "code_organization": "良好",
+    "modularization": "优秀",
+    "documentation_coverage": "高",
+    "type_safety": "高 (TypeScript + Python type hints)",
+    "error_handling": "完善",
+    "testing_coverage": "中等，需提升"
+  },
+  "security_considerations": [
+    "SQL注入防护 (使用参数化查询)",
+    "模板沙箱环境 (Jinja2 SandboxedEnvironment)",
+    "API密钥管理 (环境变量 + 数据库加密)",
+    "CORS配置 (生产环境需限制域名)",
+    "输入验证 (Pydantic模型验证)"
+  ]
+}

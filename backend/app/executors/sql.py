@@ -1,4 +1,12 @@
-"""SQL variable executor - P0"""
+"""
+SQL变量执行器模块
+
+功能说明：
+- 执行SQL查询并返回结果
+- 支持多种结果模式（单行、多行、单值、单列）
+- 支持变量插值和参数化查询
+- 自动类型转换和结果格式化
+"""
 from typing import Any
 from app.executors.base import BaseVariableExecutor
 from app.connectors.database import db_connector
@@ -8,9 +16,16 @@ from app.core.models import SqlResultMode
 
 class SqlExecutor(BaseVariableExecutor):
     """
-    Executes SQL type variables
+    SQL执行器
     
-    Supports multiple result modes:
+    功能：
+    1. 执行SQL查询语句
+    2. 支持混合查询模式：
+       - {{variable}}: 用于SQL结构插值（表名、字段名等）
+       - :param_name: 用于参数化查询（数据值，防SQL注入）
+    3. 支持多种结果返回模式
+    
+    支持的结果模式：
     - first_row: 返回第一行作为对象 {col1: val1, col2: val2}
     - all_rows: 返回所有行作为数组 [{row1}, {row2}, ...]
     - first_value: 返回第一行第一列的值（标量）
@@ -20,11 +35,21 @@ class SqlExecutor(BaseVariableExecutor):
     
     async def _execute_impl(self) -> Any:
         """
-        Execute SQL query and return results based on result_mode
+        执行SQL查询并根据result_mode返回结果
         
-        Supports hybrid scenarios:
-        - {{variable}}: String interpolation for SQL structure (table names, columns, etc.)
-        - :param_name: Parameterized queries for data values (safe, prevents SQL injection)
+        执行流程：
+        1. 插值{{variable}}模式（用于SQL结构：表名、字段等）
+        2. 准备:param_name参数（用于数据值，防SQL注入）
+        3. 执行查询
+        4. 根据result_mode格式化结果
+        
+        混合查询示例：
+            SELECT {{columns}} FROM {{table_name}} WHERE id = :user_id
+            - {{columns}}, {{table_name}}: 结构插值（不防注入，谨慎使用）
+            - :user_id: 参数化查询（安全，防注入）
+        
+        Returns:
+            Any: 根据result_mode返回不同格式的结果
         """
         if not self.metadata.sql_config:
             raise SqlExecutionError(
@@ -34,9 +59,9 @@ class SqlExecutor(BaseVariableExecutor):
         
         config = self.metadata.sql_config
         
-        # Step 1: Interpolate {{variable}} patterns for SQL structure
-        # This allows dynamic table names, column lists, JOIN clauses, etc.
-        # Note: :param_name placeholders will be preserved for parameterized queries
+        # 步骤1：插值 {{variable}} 模式，用于SQL结构部分
+        # 允许动态表名、字段列表、JOIN子句等
+        # 注意：:param_name占位符会被保留，用于后续参数化查询
         try:
             query = self.context.interpolate_string(config.query)
         except Exception as e:
@@ -46,16 +71,16 @@ class SqlExecutor(BaseVariableExecutor):
                 e
             )
         
-        # Step 2: Prepare parameters for :param_name placeholders
-        # These will be safely passed to the database driver
+        # 步骤2：准备 :param_name 参数
+        # 这些参数会安全地传递给数据库驱动，防止SQL注入
         parameters = {}
         if config.parameters:
             for param_name in config.parameters:
                 if self.context.has_variable(param_name):
                     parameters[param_name] = self.context.get_variable(param_name)
         
-        # Step 3: Execute query with both interpolated SQL and parameters
-        # The database driver will handle proper escaping and type conversion
+        # 步骤3：执行查询（同时使用插值后的SQL和参数）
+        # 数据库驱动会处理适当的转义和类型转换
         try:
             results = await db_connector.execute_query(
                 connection_name=config.connection,
@@ -70,24 +95,27 @@ class SqlExecutor(BaseVariableExecutor):
                 e
             )
         
-        # Handle empty results
+        # 处理空结果：返回默认值或None
         if not results:
             return self.metadata.default if self.metadata.default is not None else None
         
-        # Get result_mode (default to AUTO if not specified)
+        # 获取结果模式（默认为AUTO）
         result_mode = config.result_mode if config.result_mode else SqlResultMode.AUTO
         
-        # Return data based on result_mode
+        # 步骤4：根据result_mode返回格式化的数据
         if result_mode == SqlResultMode.FIRST_ROW:
-            # 返回第一行
+            # 模式1：返回第一行作为对象
+            # 示例：{id: 1, name: "Alice", age: 25}
             return results[0]
         
         elif result_mode == SqlResultMode.ALL_ROWS:
-            # 返回所有行
+            # 模式2：返回所有行作为数组
+            # 示例：[{id: 1, name: "Alice"}, {id: 2, name: "Bob"}]
             return results
         
         elif result_mode == SqlResultMode.FIRST_VALUE:
-            # 返回第一行第一列
+            # 模式3：返回第一行第一列（单个标量值）
+            # 示例：42 或 "Alice"
             first_row = results[0]
             if first_row:
                 values = list(first_row.values())
@@ -95,22 +123,23 @@ class SqlExecutor(BaseVariableExecutor):
             return None
         
         elif result_mode == SqlResultMode.FIRST_COLUMN:
-            # 返回第一列的所有值
+            # 模式4：返回第一列的所有值作为数组
+            # 示例：[1, 2, 3, 4, 5]
             if results and results[0]:
                 column_name = list(results[0].keys())[0]
                 return [row[column_name] for row in results if column_name in row]
             return []
         
         else:  # SqlResultMode.AUTO or other
-            # 自动模式：基于type和实际数据智能判断
+            # 模式5：自动模式 - 基于变量的type智能判断返回格式
             if self.metadata.type == "array":
-                # 明确要求array，返回所有行
+                # 变量类型为array，返回所有行
                 return results
             
             elif self.metadata.type == "object":
-                # object类型：
-                # - 单行：返回对象
-                # - 多行：返回数组（避免丢数据）
+                # 变量类型为object
+                # - 单行结果：返回对象
+                # - 多行结果：返回数组（避免丢失数据）
                 if len(results) == 1:
                     return results[0]
                 else:
@@ -118,7 +147,8 @@ class SqlExecutor(BaseVariableExecutor):
                     return results
             
             elif self.metadata.type in ("string", "number", "boolean"):
-                # 标量类型：返回第一行第一列
+                # 变量类型为标量（字符串、数字、布尔值）
+                # 返回第一行第一列的值
                 first_row = results[0]
                 if first_row:
                     values = list(first_row.values())
@@ -126,6 +156,6 @@ class SqlExecutor(BaseVariableExecutor):
                 return None
             
             else:
-                # 默认返回所有数据
+                # 未指定类型，默认返回所有数据
                 return results
 

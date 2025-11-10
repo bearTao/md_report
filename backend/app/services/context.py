@@ -1,4 +1,13 @@
-"""Execution context manager - P0"""
+"""
+执行上下文管理器模块
+
+功能说明：
+- 管理变量执行过程中的所有状态
+- 存储已执行变量的值
+- 提供变量插值和依赖解析功能
+- 管理任务取消标志
+- 支持嵌套属性访问和类型保持
+"""
 from typing import Any, Dict, Optional
 import json
 import re
@@ -8,38 +17,92 @@ from app.core.exceptions import DependencyError
 
 class ExecutionContext:
     """
-    Manages variable execution context (in-memory for P0)
-    Stores variable values and provides dependency resolution
+    执行上下文管理器
+    
+    核心职责：
+    1. 存储执行过程中的所有变量值
+    2. 提供变量插值功能（{{variable}}格式）
+    3. 检查变量依赖关系
+    4. 管理任务取消状态
+    5. 支持智能类型转换
+    
+    使用场景：
+    - SQL查询：插值表名、字段名、WHERE条件
+    - AI提示词：插值已有变量到提示词模板
+    - API请求：插值URL参数、请求体
+    - 模板渲染：提供所有变量用于Jinja2渲染
     """
     
-    # Class-level cancellation flags storage
+    # 类级别的取消标志存储（所有实例共享）
     _cancellation_flags: Dict[str, bool] = {}
     
     def __init__(self, task_id: str, template_id: str, 
                  user_inputs: Dict[str, Any], 
                  metadata: Dict[str, VariableMetadata]):
+        """
+        初始化执行上下文
+        
+        Args:
+            task_id: 任务ID
+            template_id: 模板ID
+            user_inputs: 用户输入的变量值
+            metadata: 所有变量的元数据定义
+        """
         self.task_id = task_id
         self.template_id = template_id
         self.user_inputs = user_inputs
         self.metadata = metadata
-        self.variables: Dict[str, Any] = {}
+        self.variables: Dict[str, Any] = {}  # 存储已执行的变量值
         
     def set_variable(self, name: str, value: Any):
-        """Set variable value in context"""
+        """
+        设置变量值到上下文
+        
+        Args:
+            name: 变量名
+            value: 变量值（任意类型）
+        """
         self.variables[name] = value
         
     def get_variable(self, name: str) -> Any:
-        """Get variable value from context"""
+        """
+        从上下文获取变量值
+        
+        Args:
+            name: 变量名
+        
+        Returns:
+            Any: 变量值
+            
+        Raises:
+            KeyError: 变量不存在
+        """
         if name in self.variables:
             return self.variables[name]
         raise KeyError(f"Variable '{name}' not found in context")
         
     def has_variable(self, name: str) -> bool:
-        """Check if variable exists in context"""
+        """
+        检查变量是否存在
+        
+        Args:
+            name: 变量名
+        
+        Returns:
+            bool: 是否存在
+        """
         return name in self.variables
         
     def get_dependencies(self, variable_name: str) -> list[str]:
-        """Get dependencies for a variable"""
+        """
+        获取变量的依赖列表
+        
+        Args:
+            variable_name: 变量名
+        
+        Returns:
+            list[str]: 依赖的变量名列表
+        """
         if variable_name not in self.metadata:
             return []
         var_meta = self.metadata[variable_name]
@@ -47,8 +110,15 @@ class ExecutionContext:
         
     def check_dependencies_ready(self, variable_name: str) -> tuple[bool, list[str]]:
         """
-        Check if all dependencies for a variable are ready
-        Returns (all_ready, missing_deps)
+        检查变量的所有依赖是否已就绪
+        
+        用于在执行变量前验证依赖条件
+        
+        Args:
+            variable_name: 变量名
+        
+        Returns:
+            tuple[bool, list[str]]: (是否全部就绪, 缺失的依赖列表)
         """
         deps = self.get_dependencies(variable_name)
         missing = [dep for dep in deps if not self.has_variable(dep)]
@@ -56,9 +126,35 @@ class ExecutionContext:
         
     def interpolate_string(self, template_str: str) -> str:
         """
-        Interpolate variables in string templates
-        Supports both {{variable_name}} (Jinja2 style) and {variable_name} (Python format style)
-        Used for SQL queries, API URLs, AI prompts, system values
+        字符串模板插值（变量替换）
+        
+        功能说明：
+        - 支持{{variable}}格式（Jinja2风格）
+        - 支持{variable}格式（Python格式化风格）
+        - 支持嵌套属性访问：{{user.name}}
+        - 支持过滤器：{{count | length}}
+        - 智能类型转换（dict/list转JSON，None转空串）
+        
+        使用场景：
+        - SQL查询：SELECT * FROM {{table_name}} WHERE id = {{user_id}}
+        - API URL：https://api.com/users/{{user_id}}
+        - AI提示词：分析以下数据：{{data}}
+        
+        支持的过滤器：
+        - length: 获取长度
+        - default: 默认值
+        - upper/lower: 大小写转换
+        - trim: 去除首尾空白
+        - first/last: 获取首尾元素
+        
+        Args:
+            template_str: 包含变量占位符的字符串
+        
+        Returns:
+            str: 插值后的字符串
+            
+        Raises:
+            DependencyError: 引用的变量不存在
         """
         def replace_var(match):
             var_expr = match.group(1).strip()
