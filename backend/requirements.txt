@@ -11,8 +11,8 @@ pyyaml==6.0.1
 
 # Database
 sqlalchemy==2.0.44
-# psycopg2-binary==2.9.9
-pymysql==1.1.0
+psycopg2-binary==2.9.9
+pymysql==1.1.0  # 保留用于连接外部 MySQL 数据源（非主数据库）
 alembic==1.13.1
 
 # HTTP Client

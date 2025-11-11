@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 import uuid
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +269,7 @@ async def execute_report_generation(
         task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
         if task:
             task.status = 'running'
-            task.started_at = datetime.utcnow()
+            task.started_at = datetime.now(timezone.utc)
             
             # Update report status to RUNNING
             report = db_session.query(Report).filter(Report.task_id == task_id).first()
@@ -360,7 +360,7 @@ async def execute_report_generation(
                     variable_name=var_name,
                     source=var_meta.source.value,  # 直接使用字符串值
                     status='running',  # 直接使用字符串值
-                    started_at=datetime.utcnow(),
+                    started_at=datetime.now(timezone.utc),
                     template_id=current_template_id,
                     template_path=current_template_path
                 )
@@ -387,7 +387,7 @@ async def execute_report_generation(
                 
                 if var_record:
                     var_record.status = VariableStatusType(status.value)
-                    var_record.finished_at = datetime.utcnow()
+                    var_record.finished_at = datetime.now(timezone.utc)
                     if result:
                         var_record.duration_ms = result.duration_ms
                         if result.error:
@@ -463,10 +463,10 @@ async def execute_report_generation(
                 task.render_error = {
                     "error_type": "TemplateRenderError",
                     "error_message": str(e),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
                 task.status = 'failed'
-                task.finished_at = datetime.utcnow()
+                task.finished_at = datetime.now(timezone.utc)
             
             # 同时更新报告状态
             report = db_session.query(Report).filter(Report.task_id == task_id).first()
@@ -498,7 +498,7 @@ async def execute_report_generation(
         task = db_session.query(GenerationTask).filter(GenerationTask.id == task_id).first()
         duration_ms = None
         if task and task.started_at:
-            duration_ms = int((datetime.utcnow() - task.started_at).total_seconds() * 1000)
+            duration_ms = int((datetime.now(timezone.utc) - task.started_at).total_seconds() * 1000)
         
         # Update existing report with success status and content
         report = db_session.query(Report).filter(Report.task_id == task_id).first()
@@ -526,7 +526,7 @@ async def execute_report_generation(
         # Update task status
         if task:
             task.status = 'success'
-            task.finished_at = datetime.utcnow()
+            task.finished_at = datetime.now(timezone.utc)
         
         db_session.commit()
         
@@ -553,7 +553,7 @@ async def execute_report_generation(
             duration_ms = None
             if task:
                 task.status = 'failed'
-                task.finished_at = datetime.utcnow()
+                task.finished_at = datetime.now(timezone.utc)
                 if task.started_at:
                     duration_ms = int((task.finished_at - task.started_at).total_seconds() * 1000)
             
@@ -695,7 +695,7 @@ async def list_reports(
             try:
                 created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
             except (ValueError, AttributeError):
-                created_at = datetime.utcnow()
+                created_at = datetime.now(timezone.utc)
         
         items.append(ReportListItem(
             id=r.id,
@@ -728,13 +728,13 @@ async def get_report(
         try:
             created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
         except (ValueError, AttributeError):
-            created_at = datetime.utcnow()
+            created_at = datetime.now(timezone.utc)
     
     if isinstance(updated_at, str):
         try:
             updated_at = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
         except (ValueError, AttributeError):
-            updated_at = datetime.utcnow()
+            updated_at = datetime.now(timezone.utc)
     
     return ReportResponse(
         id=report.id,
@@ -764,7 +764,7 @@ async def update_report(
     
     # 更新标题
     report.title = request.title
-    report.updated_at = datetime.utcnow()
+    report.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(report)
     
@@ -776,13 +776,13 @@ async def update_report(
         try:
             created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
         except (ValueError, AttributeError):
-            created_at = datetime.utcnow()
+            created_at = datetime.now(timezone.utc)
     
     if isinstance(updated_at, str):
         try:
             updated_at = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
         except (ValueError, AttributeError):
-            updated_at = datetime.utcnow()
+            updated_at = datetime.now(timezone.utc)
     
     return ReportResponse(
         id=report.id,
@@ -1090,7 +1090,7 @@ async def cancel_task(
     
     # Update task status
     task.status = 'cancelled'
-    task.finished_at = datetime.utcnow()
+    task.finished_at = datetime.now(timezone.utc)
     
     # Update report status to CANCELLED
     report = db.query(Report).filter(Report.task_id == task_id).first()
@@ -1105,7 +1105,7 @@ async def cancel_task(
     
     for var in running_vars:
         var.status = 'cancelled'
-        var.finished_at = datetime.utcnow()
+        var.finished_at = datetime.now(timezone.utc)
         if var.started_at:
             var.duration_ms = int((var.finished_at - var.started_at).total_seconds() * 1000)
     
@@ -1179,7 +1179,7 @@ async def retry_variable(
             can_retry = True
         else:
             # If started more than 5 minutes ago but still pending, consider it stuck
-            time_since_start = (datetime.utcnow() - var.started_at).total_seconds()
+            time_since_start = (datetime.now(timezone.utc) - var.started_at).total_seconds()
             if time_since_start > 300:  # 5 minutes
                 can_retry = True
     
@@ -1286,7 +1286,7 @@ async def retry_variable_execution(task_id: str, variable_name: str):
             raise HTTPException(status_code=404, detail="Variable record not found for update")
         
         var_record.status = 'running'
-        var_record.started_at = datetime.utcnow()
+        var_record.started_at = datetime.now(timezone.utc)
         db_session.commit()
         
         # Broadcast variable started
@@ -1303,7 +1303,7 @@ async def retry_variable_execution(task_id: str, variable_name: str):
         
         # Update result
         var_record.status = result.status.value  # 直接使用枚举的字符串值
-        var_record.finished_at = datetime.utcnow()
+        var_record.finished_at = datetime.now(timezone.utc)
         var_record.duration_ms = result.duration_ms
         
         if result.status == VariableStatus.SUCCESS:
@@ -1353,7 +1353,7 @@ async def retry_variable_execution(task_id: str, variable_name: str):
             if var_record:
                 var_record.status = 'failed'
                 var_record.error_message = str(e)
-                var_record.finished_at = datetime.utcnow()
+                var_record.finished_at = datetime.now(timezone.utc)
                 db_session.commit()
                 
                 await ws_manager.broadcast_variable_failed(
@@ -1400,7 +1400,7 @@ async def continue_report_generation(task_id: str, context: ExecutionContext, db
         # Calculate duration
         duration_ms = None
         if task.started_at:
-            duration_ms = int((datetime.utcnow() - task.started_at).total_seconds() * 1000)
+            duration_ms = int((datetime.now(timezone.utc) - task.started_at).total_seconds() * 1000)
         
         # Update existing report with success status and content
         report = db_session.query(Report).filter(Report.task_id == task_id).first()
@@ -1428,7 +1428,7 @@ async def continue_report_generation(task_id: str, context: ExecutionContext, db
         
         # Update task status
         task.status = 'success'
-        task.finished_at = datetime.utcnow()
+        task.finished_at = datetime.now(timezone.utc)
         db_session.commit()
         
         # Broadcast completion
@@ -1446,7 +1446,7 @@ async def continue_report_generation(task_id: str, context: ExecutionContext, db
         
         # Mark task as failed
         task.status = 'failed'
-        task.finished_at = datetime.utcnow()
+        task.finished_at = datetime.now(timezone.utc)
         
         # Update report status to FAILED
         report = db_session.query(Report).filter(Report.task_id == task_id).first()

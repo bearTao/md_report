@@ -1,0 +1,56 @@
+{
+  "export_time": "2025-11-10T14:34:13.551563",
+  "source_database": "mysql",
+  "tables": {
+    "agent_session_states": {
+      "row_count": 8,
+      "status": "success"
+    },
+    "ai_provider_keys": {
+      "row_count": 1,
+      "status": "success"
+    },
+    "chat_messages": {
+      "row_count": 0,
+      "status": "failed",
+      "error": "Object of type Decimal is not JSON serializable"
+    },
+    "chat_rag_chunks": {
+      "row_count": 0,
+      "status": "success"
+    },
+    "chat_sessions": {
+      "row_count": 0,
+      "status": "failed",
+      "error": "Object of type Decimal is not JSON serializable"
+    },
+    "db_connections": {
+      "row_count": 10,
+      "status": "success"
+    },
+    "execution_logs": {
+      "row_count": 2092,
+      "status": "success"
+    },
+    "generation_task_variables": {
+      "row_count": 1789,
+      "status": "success"
+    },
+    "generation_tasks": {
+      "row_count": 168,
+      "status": "success"
+    },
+    "predefined_tags": {
+      "row_count": 47,
+      "status": "success"
+    },
+    "reports": {
+      "row_count": 110,
+      "status": "success"
+    },
+    "templates": {
+      "row_count": 19,
+      "status": "success"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 """WebSocket connection manager for real-time progress updates"""
 from typing import Dict, Set, Any
 from fastapi import WebSocket
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from enum import Enum
@@ -105,7 +105,7 @@ class WebSocketManager:
         """Broadcast template render started event"""
         await self.send_event(task_id, WSEventType.RENDER_STARTED, {
             "task_id": task_id,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
     
     async def broadcast_render_completed(self, task_id: str, output_size: int):
@@ -113,7 +113,7 @@ class WebSocketManager:
         await self.send_event(task_id, WSEventType.RENDER_COMPLETED, {
             "task_id": task_id,
             "output_size": output_size,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
     
     async def broadcast_render_failed(self, task_id: str, error: Dict[str, Any]):

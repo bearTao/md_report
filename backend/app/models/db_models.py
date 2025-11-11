@@ -1,5 +1,5 @@
 """Database ORM models"""
-from sqlalchemy import Column, String, Text, DateTime, Integer, JSON, Enum as SQLEnum, Numeric
+from sqlalchemy import Column, String, Text, DateTime, Integer, JSON, Enum as SQLEnum, Numeric, Boolean
 from sqlalchemy.sql import func
 from datetime import datetime
 import enum
@@ -140,7 +140,7 @@ class DBConnection(Base):
     username = Column(String(200), nullable=False)
     password_ciphertext = Column(Text, nullable=False)
     options_json = Column(JSON)  # Additional connection options
-    is_active = Column(String(10), default="true")  # Use string for boolean
+    is_active = Column(Boolean, default=True)  # PostgreSQL 原生布尔类型
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

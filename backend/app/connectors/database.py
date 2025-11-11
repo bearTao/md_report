@@ -79,8 +79,8 @@ class DatabaseConnector:
         2. 传入已存在的Engine对象（直接使用）
         
         连接URL格式示例：
-        - MySQL: mysql+pymysql://user:pass@host:port/db
         - PostgreSQL: postgresql://user:pass@host:port/db
+        - MySQL: mysql+pymysql://user:pass@host:port/db
         - SQL Server: mssql+pyodbc://user:pass@host:port/db
         - SQLite: sqlite:///path/to/db.sqlite
         

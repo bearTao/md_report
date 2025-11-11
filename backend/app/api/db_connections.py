@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models.db_models import DBConnection, DBEngineType
@@ -151,7 +151,7 @@ async def update_db_connection(
     if request.is_active is not None:
         connection.is_active = "true" if request.is_active else "false"
     
-    connection.updated_at = datetime.utcnow()
+    connection.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(connection)
     

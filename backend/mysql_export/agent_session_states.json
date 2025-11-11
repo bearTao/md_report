@@ -1,0 +1,247 @@
+[
+  {
+    "id": 1,
+    "session_id": "session-1762183336345",
+    "current_step": "error",
+    "operation_type": "create",
+    "context_data": {
+      "user_intent": "我需要生成一份网络技术评估报告"
+    },
+    "step_history": [],
+    "expires_at": "2025-11-03T15:52:23",
+    "created_at": "2025-11-03T23:22:23",
+    "updated_at": "2025-11-03T23:22:24"
+  },
+  {
+    "id": 2,
+    "session_id": "session-1762183376550",
+    "current_step": "analyzing",
+    "operation_type": "create",
+    "context_data": {
+      "user_intent": "微网格预分析报告"
+    },
+    "step_history": [],
+    "expires_at": "2025-11-03T16:34:57",
+    "created_at": "2025-11-03T23:23:03",
+    "updated_at": "2025-11-04T00:04:56"
+  },
+  {
+    "id": 3,
+    "session_id": "session-1762186383423",
+    "current_step": "awaiting_input",
+    "operation_type": "create",
+    "context_data": {
+      "user_inputs": {},
+      "user_intent": "预分析报告",
+      "selected_tags": [
+        "报告",
+        "技术",
+        "评估"
+      ],
+      "required_variables": {
+        "tpl_21c2afbe565c": [
+          "wgid"
+        ],
+        "tpl_ea3b242cf779": [
+          "username"
+        ]
+      },
+      "selected_templates": [
+        {
+          "id": "tpl_21c2afbe565c",
+          "name": "微网格预分析_pgsql",
+          "reason": "覆盖评估标签且名称明确包含预分析"
+        },
+        {
+          "id": "tpl_ea3b242cf779",
+          "name": "MySQL 测试模板",
+          "reason": "覆盖技术标签且与数据库迁移相关"
+        }
+      ]
+    },
+    "step_history": [],
+    "expires_at": "2025-11-04T01:08:04",
+    "created_at": "2025-11-04T00:13:17",
+    "updated_at": "2025-11-04T08:41:36"
+  },
+  {
+    "id": 4,
+    "session_id": "session-1762216910859",
+    "current_step": "awaiting_input",
+    "operation_type": "create",
+    "context_data": {
+      "user_inputs": {},
+      "user_intent": "预分析报告",
+      "selected_tags": [
+        "报告",
+        "技术",
+        "评估"
+      ],
+      "required_variables": {
+        "tpl_07cf7b90769d": [
+          "title2",
+          "content2"
+        ]
+      },
+      "selected_templates": [
+        {
+          "id": "tpl_07cf7b90769d",
+          "name": "子模版2",
+          "reason": "AI选择失败，使用默认模板"
+        }
+      ]
+    },
+    "step_history": [],
+    "expires_at": "2025-11-04T01:12:56",
+    "created_at": "2025-11-04T08:42:56",
+    "updated_at": "2025-11-04T08:46:07"
+  },
+  {
+    "id": 5,
+    "session_id": "session-1762217822356",
+    "current_step": "awaiting_input",
+    "operation_type": "create",
+    "context_data": {
+      "user_inputs": {},
+      "user_intent": "预分析报告",
+      "selected_tags": [
+        "技术",
+        "评估",
+        "报告"
+      ],
+      "required_variables": {
+        "tpl_07cf7b90769d": [
+          "title2",
+          "content2"
+        ]
+      },
+      "selected_templates": [
+        {
+          "id": "tpl_07cf7b90769d",
+          "name": "子模版2",
+          "reason": "AI选择失败，使用默认模板"
+        }
+      ]
+    },
+    "step_history": [],
+    "expires_at": "2025-11-04T01:27:23",
+    "created_at": "2025-11-04T08:57:23",
+    "updated_at": "2025-11-04T08:59:33"
+  },
+  {
+    "id": 6,
+    "session_id": "session-1762219149092",
+    "current_step": "awaiting_input",
+    "operation_type": "create",
+    "context_data": {
+      "user_inputs": {},
+      "user_intent": "预分析报告",
+      "selected_tags": [
+        "评估",
+        "技术",
+        "报告"
+      ],
+      "required_variables": {
+        "tpl_07cf7b90769d": [
+          "title2",
+          "content2"
+        ]
+      },
+      "selected_templates": [
+        {
+          "id": "tpl_07cf7b90769d",
+          "name": "子模版2",
+          "reason": "AI选择失败，使用降级策略（第一个匹配模板）"
+        }
+      ]
+    },
+    "step_history": [],
+    "expires_at": "2025-11-04T01:52:36",
+    "created_at": "2025-11-04T09:22:35",
+    "updated_at": "2025-11-04T09:26:57"
+  },
+  {
+    "id": 7,
+    "session_id": "session-1762220794388",
+    "current_step": "completed",
+    "operation_type": "create",
+    "context_data": {
+      "user_inputs": {},
+      "user_intent": "预分析报告",
+      "selected_tags": [
+        "报告",
+        "技术",
+        "评估"
+      ],
+      "required_variables": {
+        "tpl_21c2afbe565c": [
+          "wgid"
+        ],
+        "tpl_8d46934e172c": [
+          "title",
+          "content"
+        ]
+      },
+      "selected_templates": [
+        {
+          "id": "tpl_21c2afbe565c",
+          "name": "微网格预分析_pgsql",
+          "reason": "满足评估标签且集成等级为0，但用户需求是预分析报告，可能需要技术标签"
+        },
+        {
+          "id": "tpl_17",
+          "name": "MySQL 测试模板",
+          "reason": "技术标签，适合预分析报告，集成等级为0"
+        },
+        {
+          "id": "tpl_8d46934e172c",
+          "name": "模板嵌套测试",
+          "reason": "技术标签，可能提供更全面的分析"
+        }
+      ]
+    },
+    "step_history": [],
+    "expires_at": "2025-11-04T03:15:09",
+    "created_at": "2025-11-04T09:47:02",
+    "updated_at": "2025-11-04T10:52:06"
+  },
+  {
+    "id": 8,
+    "session_id": "session-1762227429460",
+    "current_step": "awaiting_input",
+    "operation_type": "create",
+    "context_data": {
+      "user_inputs": {},
+      "user_intent": "预分析报告\n",
+      "selected_tags": [
+        "评估",
+        "报告",
+        "技术"
+      ],
+      "required_variables": {
+        "tpl_21c2afbe565c": [
+          "wgid"
+        ],
+        "tpl_86b6a5129a4d": [
+          "wgid"
+        ]
+      },
+      "selected_templates": [
+        {
+          "id": "tpl_21c2afbe565c",
+          "name": "微网格预分析_pgsql",
+          "reason": "满足评估需求且集成等级为0，但可能需要结合其他模板"
+        },
+        {
+          "id": "tpl_86b6a5129a4d",
+          "name": "预分析3",
+          "reason": "满足评估需求且集成等级为0，但可能需要结合其他模板"
+        }
+      ]
+    },
+    "step_history": [],
+    "expires_at": "2025-11-04T04:07:30",
+    "created_at": "2025-11-04T11:37:29",
+    "updated_at": "2025-11-04T11:37:35"
+  }
+]

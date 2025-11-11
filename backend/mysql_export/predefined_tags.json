@@ -1,0 +1,425 @@
+[
+  {
+    "id": 1,
+    "name": "5G网络",
+    "category": "网络类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 2,
+    "name": "4G网络",
+    "category": "网络类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 3,
+    "name": "核心网",
+    "category": "网络类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 4,
+    "name": "传输网",
+    "category": "网络类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 5,
+    "name": "接入网",
+    "category": "网络类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 6,
+    "name": "承载网",
+    "category": "网络类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 7,
+    "name": "物联网",
+    "category": "网络类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 8,
+    "name": "基站",
+    "category": "设备与技术",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 9,
+    "name": "天线",
+    "category": "设备与技术",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 10,
+    "name": "光纤",
+    "category": "设备与技术",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 11,
+    "name": "交换机",
+    "category": "设备与技术",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 12,
+    "name": "路由器",
+    "category": "设备与技术",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 13,
+    "name": "服务器",
+    "category": "设备与技术",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 14,
+    "name": "存储设备",
+    "category": "设备与技术",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 15,
+    "name": "网络规划",
+    "category": "业务场景",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 16,
+    "name": "网络优化",
+    "category": "业务场景",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 17,
+    "name": "故障分析",
+    "category": "业务场景",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 18,
+    "name": "性能监控",
+    "category": "业务场景",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 19,
+    "name": "容量扩展",
+    "category": "业务场景",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 20,
+    "name": "割接迁移",
+    "category": "业务场景",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 21,
+    "name": "应急保障",
+    "category": "业务场景",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 22,
+    "name": "无线技术",
+    "category": "技术领域",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 23,
+    "name": "传输技术",
+    "category": "技术领域",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 24,
+    "name": "IP技术",
+    "category": "技术领域",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 25,
+    "name": "数据通信",
+    "category": "技术领域",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 26,
+    "name": "网络安全",
+    "category": "技术领域",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 27,
+    "name": "云计算",
+    "category": "技术领域",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 28,
+    "name": "边缘计算",
+    "category": "技术领域",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 29,
+    "name": "性能分析",
+    "category": "分析类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 30,
+    "name": "风险评估",
+    "category": "分析类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 31,
+    "name": "成本分析",
+    "category": "分析类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 32,
+    "name": "趋势预测",
+    "category": "分析类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 33,
+    "name": "对比分析",
+    "category": "分析类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 34,
+    "name": "根因分析",
+    "category": "分析类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 35,
+    "name": "技术方案",
+    "category": "报告类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 36,
+    "name": "测试报告",
+    "category": "报告类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 37,
+    "name": "评估报告",
+    "category": "报告类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 38,
+    "name": "总结报告",
+    "category": "报告类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 39,
+    "name": "规划报告",
+    "category": "报告类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 40,
+    "name": "分析报告",
+    "category": "报告类型",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 41,
+    "name": "覆盖率",
+    "category": "指标维度",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 42,
+    "name": "容量",
+    "category": "指标维度",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 43,
+    "name": "质量",
+    "category": "指标维度",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 44,
+    "name": "时延",
+    "category": "指标维度",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 45,
+    "name": "吞吐量",
+    "category": "指标维度",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 46,
+    "name": "可用性",
+    "category": "指标维度",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  },
+  {
+    "id": 47,
+    "name": "可靠性",
+    "category": "指标维度",
+    "description": null,
+    "usage_count": null,
+    "created_at": "2025-11-04T11:22:36",
+    "updated_at": "2025-11-04T11:22:36"
+  }
+]

@@ -13,17 +13,17 @@ from sqlalchemy.orm import sessionmaker
 from typing import Generator
 import os
 
-# 从环境变量获取数据库URL，如果未设置则使用默认的MySQL连接
-# MySQL连接格式: mysql+pymysql://用户名:密码@主机:端口/数据库名?charset=utf8mb4
+# 从环境变量获取数据库URL，如果未设置则使用默认的PostgreSQL连接
+# PostgreSQL连接格式: postgresql://用户名:密码@主机:端口/数据库名
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "mysql+pymysql://root:123456@10.10.20.10:24406/md_agent?charset=utf8mb4"
+    "postgresql://microgrid:microgrid123@10.10.20.10:14632/new_md_agent"
 )
 
 # 创建数据库引擎的配置参数
 engine_kwargs = {
     "pool_pre_ping": True,      # 启用连接健康检查，每次使用前先ping测试
-    "pool_recycle": 3600,        # 连接回收时间：1小时后回收（对应MySQL的wait_timeout）
+    "pool_recycle": 3600,        # 连接回收时间：1小时后回收
     "pool_size": 5,              # 连接池大小：默认保持5个连接
     "max_overflow": 10,          # 最大溢出连接数（总最大连接数 = pool_size + max_overflow = 15）
     "pool_timeout": 30,          # 从连接池获取连接的超时时间（秒）

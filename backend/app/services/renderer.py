@@ -2,6 +2,7 @@
 from typing import Dict, Any, Set, Optional
 import re
 import logging
+from datetime import datetime, timezone
 from jinja2 import Environment, BaseLoader, TemplateError
 from jinja2.sandbox import SandboxedEnvironment
 from jinja2 import tests as jinja2_tests
@@ -259,7 +260,7 @@ class TemplateRenderer:
                         variable_name=var_name,
                         source=var_meta.source.value,
                         status='running',
-                        started_at=datetime.utcnow(),
+                        started_at=datetime.now(timezone.utc),
                         template_id=template_id,
                         template_path=template_path
                     )
@@ -286,7 +287,7 @@ class TemplateRenderer:
                     
                     if var_record:
                         var_record.status = VariableStatusType(status.value)
-                        var_record.finished_at = datetime.utcnow()
+                        var_record.finished_at = datetime.now(timezone.utc)
                         if result:
                             var_record.duration_ms = result.duration_ms
                             if result.error:

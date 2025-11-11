@@ -1,0 +1,2279 @@
+[
+  {
+    "id": "task_01a82f276711",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_07cf7b90769d": {
+        "title2": "子模板2",
+        "content2": "子模板2"
+      },
+      "tpl_7ffa8cbd64f0": {
+        "title3": "子模板3",
+        "content3": "子模板3"
+      },
+      "tpl_8d46934e172c": {
+        "title": "主模板",
+        "content": "主模板"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "子模板:1",
+        "content1": "子模板:1"
+      }
+    },
+    "started_at": "2025-10-28T07:30:12",
+    "finished_at": "2025-10-28T07:30:12",
+    "created_at": "2025-10-28T15:30:11",
+    "render_error": null
+  },
+  {
+    "id": "task_01c25549b9cc",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T10:49:42",
+    "finished_at": "2025-10-17T10:49:42",
+    "created_at": "2025-10-17T18:49:42",
+    "render_error": null
+  },
+  {
+    "id": "task_0266a9644371",
+    "template_id": "tpl_86b6a5129a4d",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T09:21:49",
+    "finished_at": "2025-10-22T09:21:49",
+    "created_at": "2025-10-22T17:21:48",
+    "render_error": null
+  },
+  {
+    "id": "task_02875a6f4140",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T09:22:08",
+    "finished_at": "2025-10-17T09:22:08",
+    "created_at": "2025-10-17T17:22:08",
+    "render_error": null
+  },
+  {
+    "id": "task_035be9e90b01",
+    "template_id": "tpl_b1b051d2950d",
+    "status": "running",
+    "inputs_json": {
+      "product_id": "123"
+    },
+    "started_at": "2025-10-21T08:01:56",
+    "finished_at": null,
+    "created_at": "2025-10-21T16:01:56",
+    "render_error": null
+  },
+  {
+    "id": "task_03ef942661d2",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T02:49:35",
+    "finished_at": "2025-10-20T02:49:35",
+    "created_at": "2025-10-20T10:49:34",
+    "render_error": null
+  },
+  {
+    "id": "task_05ccf863f314",
+    "template_id": "tpl_dd8081645650",
+    "status": "failed",
+    "inputs_json": {},
+    "started_at": "2025-10-28T08:35:49",
+    "finished_at": "2025-10-28T08:35:49",
+    "created_at": "2025-10-28T16:35:48",
+    "render_error": null
+  },
+  {
+    "id": "task_091c00d286d1",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_07cf7b90769d": {
+        "title2": "3",
+        "content2": "3"
+      },
+      "tpl_7ffa8cbd64f0": {
+        "title3": "4",
+        "content3": "4"
+      },
+      "tpl_8d46934e172c": {
+        "title": "1",
+        "content": "1"
+      },
+      "tpl_dd8081645650": {
+        "title1": "5"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "2",
+        "content1": "2"
+      }
+    },
+    "started_at": "2025-10-29T09:30:34",
+    "finished_at": "2025-10-29T09:30:34",
+    "created_at": "2025-10-29T17:30:33",
+    "render_error": null
+  },
+  {
+    "id": "task_09ef476b97c2",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "running",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T16:16:23",
+    "finished_at": null,
+    "created_at": "2025-10-23T00:16:23",
+    "render_error": null
+  },
+  {
+    "id": "task_0a20a7068581",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_07cf7b90769d": {
+        "title2": "3",
+        "content2": "3"
+      },
+      "tpl_7ffa8cbd64f0": {
+        "title3": "4",
+        "content3": "4"
+      },
+      "tpl_8d46934e172c": {
+        "title": "1",
+        "content": "1"
+      },
+      "tpl_dd8081645650": {
+        "title1": "5"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "2",
+        "content1": "2"
+      }
+    },
+    "started_at": "2025-10-29T09:31:30",
+    "finished_at": "2025-10-29T09:31:30",
+    "created_at": "2025-10-29T17:31:29",
+    "render_error": null
+  },
+  {
+    "id": "task_0a9a1c12444d",
+    "template_id": "tpl_b1b051d2950d",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "啊"
+    },
+    "started_at": "2025-10-21T08:56:06",
+    "finished_at": "2025-10-21T08:56:08",
+    "created_at": "2025-10-21T16:56:06",
+    "render_error": null
+  },
+  {
+    "id": "task_0a9a7b86a444",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T10:19:37",
+    "finished_at": "2025-10-17T10:19:37",
+    "created_at": "2025-10-17T18:19:36",
+    "render_error": null
+  },
+  {
+    "id": "task_0bdf4230dbcd",
+    "template_id": "tpl_7ffa8cbd64f0",
+    "status": "success",
+    "inputs_json": {
+      "title": "1",
+      "content": "1"
+    },
+    "started_at": "2025-10-28T06:29:17",
+    "finished_at": "2025-10-28T06:29:17",
+    "created_at": "2025-10-28T14:29:16",
+    "render_error": null
+  },
+  {
+    "id": "task_0cac9010b315",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T09:25:24",
+    "finished_at": "2025-10-17T09:25:24",
+    "created_at": "2025-10-17T17:25:23",
+    "render_error": null
+  },
+  {
+    "id": "task_0d04b6ade961",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_07cf7b90769d": {
+        "title2": "2",
+        "content2": "2"
+      },
+      "tpl_7ffa8cbd64f0": {
+        "title3": "3",
+        "content3": "3"
+      },
+      "tpl_8d46934e172c": {
+        "title": "0",
+        "content": "0"
+      },
+      "tpl_dd8081645650": {
+        "title1": "4"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "1",
+        "content1": "1"
+      }
+    },
+    "started_at": "2025-10-28T08:44:24",
+    "finished_at": "2025-10-28T08:44:24",
+    "created_at": "2025-10-28T16:44:23",
+    "render_error": null
+  },
+  {
+    "id": "task_0dae2e9bd0ee",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T10:31:35",
+    "finished_at": "2025-10-17T10:31:36",
+    "created_at": "2025-10-17T18:31:35",
+    "render_error": null
+  },
+  {
+    "id": "task_0e1909eef652",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T10:20:04",
+    "finished_at": "2025-10-17T10:20:04",
+    "created_at": "2025-10-17T18:20:03",
+    "render_error": null
+  },
+  {
+    "id": "task_0f06e506efa0",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "running",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T15:48:37",
+    "finished_at": null,
+    "created_at": "2025-10-22T23:48:37",
+    "render_error": null
+  },
+  {
+    "id": "task_0fe2ae460789",
+    "template_id": "tpl_ai_mysql",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "microgrid_db"
+    },
+    "started_at": "2025-10-20T08:03:20",
+    "finished_at": "2025-10-20T08:03:20",
+    "created_at": "2025-10-20T16:03:19",
+    "render_error": null
+  },
+  {
+    "id": "task_108e77f10b24",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T14:55:24",
+    "finished_at": "2025-10-22T14:55:24",
+    "created_at": "2025-10-22T22:55:24",
+    "render_error": null
+  },
+  {
+    "id": "task_11b76cd0d729",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_8d46934e172c": {
+        "title": "1",
+        "content": "1"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "2",
+        "content1": "2"
+      }
+    },
+    "started_at": "2025-10-29T09:19:26",
+    "finished_at": "2025-10-29T09:19:26",
+    "created_at": "2025-10-29T17:19:26",
+    "render_error": null
+  },
+  {
+    "id": "task_1202815884dd",
+    "template_id": "tpl_f7ec9681b30c",
+    "status": "success",
+    "inputs_json": {
+      "title": "1",
+      "content": "1"
+    },
+    "started_at": "2025-10-23T08:12:37",
+    "finished_at": "2025-10-23T08:12:37",
+    "created_at": "2025-10-23T16:12:36",
+    "render_error": null
+  },
+  {
+    "id": "task_1258139ccbed",
+    "template_id": "tpl_85e09b31e83e",
+    "status": "success",
+    "inputs_json": {
+      "title": "P1.0 E2E Test Report",
+      "content": "This is a test report for P1.0 E2E testing"
+    },
+    "started_at": "2025-10-17T03:58:14",
+    "finished_at": "2025-10-17T03:58:14",
+    "created_at": "2025-10-17T11:58:13",
+    "render_error": null
+  },
+  {
+    "id": "task_1427db614f79",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_07cf7b90769d": {
+        "title2": "3",
+        "content2": "3"
+      },
+      "tpl_7ffa8cbd64f0": {
+        "title3": "4",
+        "content3": "4"
+      },
+      "tpl_8d46934e172c": {
+        "title": "1",
+        "content": "1"
+      },
+      "tpl_dd8081645650": {
+        "title1": "5"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "2",
+        "content1": "2"
+      }
+    },
+    "started_at": "2025-10-29T08:27:12",
+    "finished_at": "2025-10-29T08:27:12",
+    "created_at": "2025-10-29T16:27:12",
+    "render_error": null
+  },
+  {
+    "id": "task_1487eade518c",
+    "template_id": "tpl_7ffa8cbd64f0",
+    "status": "success",
+    "inputs_json": {
+      "title3": "1",
+      "content3": "1"
+    },
+    "started_at": "2025-10-29T09:00:53",
+    "finished_at": "2025-10-29T09:00:53",
+    "created_at": "2025-10-29T17:00:52",
+    "render_error": null
+  },
+  {
+    "id": "task_1ce0bbfd71db",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T09:08:24",
+    "finished_at": "2025-10-17T09:08:25",
+    "created_at": "2025-10-17T17:08:24",
+    "render_error": null
+  },
+  {
+    "id": "task_1ebf7ede4630",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T07:09:34",
+    "finished_at": "2025-10-20T07:09:35",
+    "created_at": "2025-10-20T15:09:34",
+    "render_error": null
+  },
+  {
+    "id": "task_1f1657eeecaf",
+    "template_id": "tpl_71b587ba1872",
+    "status": "success",
+    "inputs_json": {},
+    "started_at": "2025-10-21T09:18:27",
+    "finished_at": "2025-10-21T09:19:05",
+    "created_at": "2025-10-21T17:18:26",
+    "render_error": null
+  },
+  {
+    "id": "task_203111e09050",
+    "template_id": "tpl_e710aea7c613",
+    "status": "success",
+    "inputs_json": {
+      "title": "3",
+      "content": "3"
+    },
+    "started_at": "2025-10-28T06:30:25",
+    "finished_at": "2025-10-28T06:30:25",
+    "created_at": "2025-10-28T14:30:24",
+    "render_error": null
+  },
+  {
+    "id": "task_2097693534bf",
+    "template_id": "tpl_6489202fec77",
+    "status": "failed",
+    "inputs_json": {},
+    "started_at": "2025-10-21T08:47:54",
+    "finished_at": "2025-10-21T08:47:54",
+    "created_at": "2025-10-21T16:47:53",
+    "render_error": null
+  },
+  {
+    "id": "task_23acde7c2d96",
+    "template_id": "tpl_3cee3225248c",
+    "status": "cancelled",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-24T01:29:23",
+    "finished_at": "2025-10-24T01:37:26",
+    "created_at": "2025-10-24T09:29:23",
+    "render_error": null
+  },
+  {
+    "id": "task_23c4ff5dfd26",
+    "template_id": "tpl_a5da8a098442",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "TEST-001"
+    },
+    "started_at": "2025-10-21T09:24:25",
+    "finished_at": "2025-10-21T09:25:11",
+    "created_at": "2025-10-21T17:24:24",
+    "render_error": null
+  },
+  {
+    "id": "task_243f84469bfa",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "failed",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 1
+    },
+    "started_at": "2025-10-29T03:36:57",
+    "finished_at": "2025-10-29T03:36:57",
+    "created_at": "2025-10-29T11:36:56",
+    "render_error": null
+  },
+  {
+    "id": "task_258373f1d1d7",
+    "template_id": "tpl_ai_mysql",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T07:30:46",
+    "finished_at": "2025-10-20T07:31:02",
+    "created_at": "2025-10-20T15:30:46",
+    "render_error": null
+  },
+  {
+    "id": "task_278609dd5848",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T02:45:33",
+    "finished_at": "2025-10-20T02:45:34",
+    "created_at": "2025-10-20T10:45:33",
+    "render_error": null
+  },
+  {
+    "id": "task_28f2858a8781",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T07:09:00",
+    "finished_at": "2025-10-20T07:09:00",
+    "created_at": "2025-10-20T15:08:59",
+    "render_error": null
+  },
+  {
+    "id": "task_29f9c509e041",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "wc"
+    },
+    "started_at": "2025-10-23T07:18:52",
+    "finished_at": "2025-10-23T07:20:52",
+    "created_at": "2025-10-23T15:18:51",
+    "render_error": null
+  },
+  {
+    "id": "task_2a12190e885d",
+    "template_id": "tpl_3cee3225248c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "JYRC1951",
+      "wgid2": "JYRC1951"
+    },
+    "started_at": "2025-10-24T03:01:20",
+    "finished_at": "2025-10-24T03:02:34",
+    "created_at": "2025-10-24T11:01:19",
+    "render_error": null
+  },
+  {
+    "id": "task_2a1531c8f38e",
+    "template_id": "tpl_86b6a5129a4d",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T09:48:44",
+    "finished_at": "2025-10-22T09:48:44",
+    "created_at": "2025-10-22T17:48:43",
+    "render_error": null
+  },
+  {
+    "id": "task_2ca385aa1c3d",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_07cf7b90769d": {
+        "title2": "3",
+        "content2": "3"
+      },
+      "tpl_7ffa8cbd64f0": {
+        "title3": "4",
+        "content3": "4"
+      },
+      "tpl_8d46934e172c": {
+        "title": "1",
+        "content": "1"
+      },
+      "tpl_dd8081645650": {
+        "title1": "5"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "2",
+        "content1": "2"
+      }
+    },
+    "started_at": "2025-10-29T09:01:07",
+    "finished_at": "2025-10-29T09:01:07",
+    "created_at": "2025-10-29T17:01:06",
+    "render_error": null
+  },
+  {
+    "id": "task_2fd073749ccc",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T08:06:32",
+    "finished_at": "2025-10-20T08:06:51",
+    "created_at": "2025-10-20T16:06:32",
+    "render_error": null
+  },
+  {
+    "id": "task_318998a48181",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_8d46934e172c": {
+        "title": "主模板标题测试",
+        "content": "主模板内容测试"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "子模板1标题测试",
+        "content1": "子模板1内容测试"
+      }
+    },
+    "started_at": "2025-10-29T09:13:46",
+    "finished_at": "2025-10-29T09:13:46",
+    "created_at": "2025-10-29T17:13:45",
+    "render_error": null
+  },
+  {
+    "id": "task_36abd325b004",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T15:05:28",
+    "finished_at": "2025-10-22T15:05:36",
+    "created_at": "2025-10-22T23:05:28",
+    "render_error": null
+  },
+  {
+    "id": "task_3cab2dd1a8f5",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_8d46934e172c": {
+        "title": "1",
+        "content": "1"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "22",
+        "content1": "2"
+      }
+    },
+    "started_at": "2025-10-29T09:08:28",
+    "finished_at": "2025-10-29T09:08:28",
+    "created_at": "2025-10-29T17:08:27",
+    "render_error": null
+  },
+  {
+    "id": "task_3fbe4b6dc846",
+    "template_id": "tpl_b1b051d2950d",
+    "status": "running",
+    "inputs_json": {
+      "product_id": "1"
+    },
+    "started_at": "2025-10-21T07:58:07",
+    "finished_at": null,
+    "created_at": "2025-10-21T15:58:06",
+    "render_error": null
+  },
+  {
+    "id": "task_4064356e28dc",
+    "template_id": "tpl_253a4636f722",
+    "status": "running",
+    "inputs_json": {
+      "image_analysis": "（Vision AI功能需要OpenAI API Key）"
+    },
+    "started_at": "2025-10-21T07:40:07",
+    "finished_at": null,
+    "created_at": "2025-10-21T15:40:06",
+    "render_error": null
+  },
+  {
+    "id": "task_4718647a7d06",
+    "template_id": "tpl_3cee3225248c",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-24T01:33:06",
+    "finished_at": "2025-10-24T01:33:32",
+    "created_at": "2025-10-24T09:33:05",
+    "render_error": null
+  },
+  {
+    "id": "task_47b680450269",
+    "template_id": "tpl_3cee3225248c",
+    "status": "cancelled",
+    "inputs_json": {
+      "wgid": "TEST001"
+    },
+    "started_at": "2025-10-24T01:37:20",
+    "finished_at": "2025-10-24T01:37:29",
+    "created_at": "2025-10-24T09:37:20",
+    "render_error": null
+  },
+  {
+    "id": "task_49b6dbac7e85",
+    "template_id": "tpl_dd8081645650",
+    "status": "failed",
+    "inputs_json": {},
+    "started_at": "2025-10-28T08:36:42",
+    "finished_at": "2025-10-28T08:36:42",
+    "created_at": "2025-10-28T16:36:41",
+    "render_error": null
+  },
+  {
+    "id": "task_4bb47a14ad8a",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T06:36:44",
+    "finished_at": "2025-10-20T06:36:45",
+    "created_at": "2025-10-20T14:36:44",
+    "render_error": null
+  },
+  {
+    "id": "task_4e658035c003",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "running",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-23T09:11:00",
+    "finished_at": null,
+    "created_at": "2025-10-23T17:11:00",
+    "render_error": null
+  },
+  {
+    "id": "task_4f4fe3a6f938",
+    "template_id": "tpl_b1b051d2950d",
+    "status": "running",
+    "inputs_json": {
+      "product_id": "请we"
+    },
+    "started_at": "2025-10-21T08:05:07",
+    "finished_at": null,
+    "created_at": "2025-10-21T16:05:07",
+    "render_error": null
+  },
+  {
+    "id": "task_5554095cd149",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T02:07:14",
+    "finished_at": "2025-10-20T02:07:15",
+    "created_at": "2025-10-20T10:07:14",
+    "render_error": null
+  },
+  {
+    "id": "task_57390fdbda40",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "failed",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 1
+    },
+    "started_at": "2025-10-29T03:57:43",
+    "finished_at": "2025-10-29T03:57:43",
+    "created_at": "2025-10-29T11:57:42",
+    "render_error": null
+  },
+  {
+    "id": "task_5dde482805e7",
+    "template_id": "tpl_de60d29279b8",
+    "status": "running",
+    "inputs_json": {
+      "image_analysis": "（Vision AI功能需要OpenAI API Key）"
+    },
+    "started_at": "2025-10-21T07:40:23",
+    "finished_at": null,
+    "created_at": "2025-10-21T15:40:23",
+    "render_error": null
+  },
+  {
+    "id": "task_60779196fef3",
+    "template_id": "tpl_3cee3225248c",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-24T02:38:04",
+    "finished_at": "2025-10-24T02:38:26",
+    "created_at": "2025-10-24T10:38:04",
+    "render_error": null
+  },
+  {
+    "id": "task_6225027ab98f",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-19T07:52:08",
+    "finished_at": "2025-10-19T07:52:08",
+    "created_at": "2025-10-19T15:52:08",
+    "render_error": null
+  },
+  {
+    "id": "task_64208194b237",
+    "template_id": "tpl_3059c79aa22c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T08:55:31",
+    "finished_at": "2025-10-22T08:55:31",
+    "created_at": "2025-10-22T16:55:30",
+    "render_error": null
+  },
+  {
+    "id": "task_645b15370e82",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T07:11:42",
+    "finished_at": "2025-10-20T07:11:52",
+    "created_at": "2025-10-20T15:11:41",
+    "render_error": null
+  },
+  {
+    "id": "task_6689787a0ec1",
+    "template_id": "tpl_ai_mysql",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T07:19:39",
+    "finished_at": "2025-10-20T07:19:55",
+    "created_at": "2025-10-20T15:19:39",
+    "render_error": null
+  },
+  {
+    "id": "task_6979e6dd7a32",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "failed",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 10000
+    },
+    "started_at": "2025-10-29T07:11:06",
+    "finished_at": "2025-10-29T07:11:09",
+    "created_at": "2025-10-29T15:11:05",
+    "render_error": {
+      "timestamp": "2025-10-29T07:11:09.337732",
+      "error_type": "TemplateRenderError",
+      "error_message": "Unexpected error during rendering: object of type 'builtin_function_or_method' has no len()"
+    }
+  },
+  {
+    "id": "task_6a201af7653f",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "12321321321"
+    },
+    "started_at": "2025-10-17T09:03:48",
+    "finished_at": "2025-10-17T09:03:48",
+    "created_at": "2025-10-17T17:03:47",
+    "render_error": null
+  },
+  {
+    "id": "task_6c3e96b0fd13",
+    "template_id": "tpl_8d46934e172c",
+    "status": "failed",
+    "inputs_json": {
+      "tpl_07cf7b90769d": {
+        "title2": "3",
+        "content2": "3"
+      },
+      "tpl_7ffa8cbd64f0": {
+        "title3": "4",
+        "content3": "4"
+      },
+      "tpl_8d46934e172c": {
+        "title": "1",
+        "content": "1"
+      },
+      "tpl_dd8081645650": {
+        "title1": "5"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "2",
+        "content1": "2"
+      }
+    },
+    "started_at": "2025-10-29T08:55:08",
+    "finished_at": "2025-10-29T08:55:08",
+    "created_at": "2025-10-29T16:55:07",
+    "render_error": null
+  },
+  {
+    "id": "task_6ddc76e91a8a",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T10:42:50",
+    "finished_at": "2025-10-17T10:42:50",
+    "created_at": "2025-10-17T18:42:49",
+    "render_error": null
+  },
+  {
+    "id": "task_70e94d789b8a",
+    "template_id": "tpl_3cee3225248c",
+    "status": "cancelled",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-24T01:29:49",
+    "finished_at": "2025-10-24T01:36:46",
+    "created_at": "2025-10-24T09:29:49",
+    "render_error": null
+  },
+  {
+    "id": "task_729570414521",
+    "template_id": "tpl_6b8db08bf334",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "阿斯顿撒"
+    },
+    "started_at": "2025-10-21T09:38:12",
+    "finished_at": "2025-10-21T09:38:35",
+    "created_at": "2025-10-21T17:38:11",
+    "render_error": null
+  },
+  {
+    "id": "task_74de5f6a252a",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T09:00:33",
+    "finished_at": "2025-10-17T09:00:33",
+    "created_at": "2025-10-17T17:00:33",
+    "render_error": null
+  },
+  {
+    "id": "task_75a38fe39751",
+    "template_id": "tpl_ai_mysql",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T08:04:44",
+    "finished_at": "2025-10-20T08:05:05",
+    "created_at": "2025-10-20T16:04:44",
+    "render_error": null
+  },
+  {
+    "id": "task_7ae996a52275",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "success",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 1
+    },
+    "started_at": "2025-10-29T07:49:32",
+    "finished_at": "2025-10-29T07:49:35",
+    "created_at": "2025-10-29T15:49:31",
+    "render_error": null
+  },
+  {
+    "id": "task_7c478e86bac9",
+    "template_id": "tpl_3cee3225248c",
+    "status": "cancelled",
+    "inputs_json": {
+      "wgid": "TEST002"
+    },
+    "started_at": "2025-10-24T01:38:37",
+    "finished_at": "2025-10-24T02:59:17",
+    "created_at": "2025-10-24T09:38:36",
+    "render_error": null
+  },
+  {
+    "id": "task_7f343eeac8b2",
+    "template_id": "tpl_b1b051d2950d",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "阿斯顿"
+    },
+    "started_at": "2025-10-21T09:23:36",
+    "finished_at": "2025-10-21T09:24:23",
+    "created_at": "2025-10-21T17:23:36",
+    "render_error": null
+  },
+  {
+    "id": "task_7fcbf86d077d",
+    "template_id": "tpl_86b6a5129a4d",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T09:51:23",
+    "finished_at": "2025-10-22T09:51:24",
+    "created_at": "2025-10-22T17:51:23",
+    "render_error": null
+  },
+  {
+    "id": "task_812f213f5f25",
+    "template_id": "tpl_86b6a5129a4d",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T13:04:58",
+    "finished_at": "2025-10-22T13:04:58",
+    "created_at": "2025-10-22T21:04:57",
+    "render_error": null
+  },
+  {
+    "id": "task_84b536584314",
+    "template_id": "tpl_6b8db08bf334",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "12312"
+    },
+    "started_at": "2025-10-21T09:32:58",
+    "finished_at": "2025-10-21T09:33:31",
+    "created_at": "2025-10-21T17:32:57",
+    "render_error": null
+  },
+  {
+    "id": "task_84f423f40dbd",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T09:10:19",
+    "finished_at": "2025-10-17T09:10:19",
+    "created_at": "2025-10-17T17:10:18",
+    "render_error": null
+  },
+  {
+    "id": "task_8653c49ed928",
+    "template_id": "tpl_86b6a5129a4d",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T10:01:00",
+    "finished_at": "2025-10-22T10:01:00",
+    "created_at": "2025-10-22T18:01:00",
+    "render_error": null
+  },
+  {
+    "id": "task_870da7135d1a",
+    "template_id": "tpl_b3c81c8d1c05",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "TEST-VISION-001"
+    },
+    "started_at": "2025-10-21T09:17:49",
+    "finished_at": "2025-10-21T09:17:51",
+    "created_at": "2025-10-21T17:17:49",
+    "render_error": null
+  },
+  {
+    "id": "task_87ba5359d076",
+    "template_id": "tpl_0c5de6dd19f7",
+    "status": "success",
+    "inputs_json": {},
+    "started_at": "2025-10-21T09:19:05",
+    "finished_at": "2025-10-21T09:19:10",
+    "created_at": "2025-10-21T17:19:04",
+    "render_error": null
+  },
+  {
+    "id": "task_87d533c4fb59",
+    "template_id": "tpl_babf64ca2a85",
+    "status": "success",
+    "inputs_json": {
+      "tpl_babf64ca2a85": {
+        "title": "主标题"
+      },
+      "tpl_edfba2ba34cc": {
+        "title": "子标题"
+      }
+    },
+    "started_at": "2025-10-28T07:22:43",
+    "finished_at": "2025-10-28T07:22:43",
+    "created_at": "2025-10-28T15:22:42",
+    "render_error": null
+  },
+  {
+    "id": "task_8a5ed7a4fcce",
+    "template_id": "tpl_7de986d9ca1b",
+    "status": "success",
+    "inputs_json": {},
+    "started_at": "2025-10-21T08:49:31",
+    "finished_at": "2025-10-21T08:49:32",
+    "created_at": "2025-10-21T16:49:30",
+    "render_error": null
+  },
+  {
+    "id": "task_8d1c08673284",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_07cf7b90769d": {
+        "title2": "3",
+        "content2": "3"
+      },
+      "tpl_7ffa8cbd64f0": {
+        "title3": "4",
+        "content3": "4"
+      },
+      "tpl_8d46934e172c": {
+        "title": "1",
+        "content": "1"
+      },
+      "tpl_dd8081645650": {
+        "title1": "5"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "2",
+        "content1": "2"
+      }
+    },
+    "started_at": "2025-10-29T09:06:44",
+    "finished_at": "2025-10-29T09:06:44",
+    "created_at": "2025-10-29T17:06:43",
+    "render_error": null
+  },
+  {
+    "id": "task_8daa1e32f4e5",
+    "template_id": "tpl_3cee3225248c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "JYRC1951",
+      "wgid2": "JYRC1951"
+    },
+    "started_at": "2025-10-27T09:08:02",
+    "finished_at": "2025-10-27T09:10:02",
+    "created_at": "2025-10-27T17:08:01",
+    "render_error": null
+  },
+  {
+    "id": "task_8ef21a1849eb",
+    "template_id": "tpl_30d383274a9f",
+    "status": "success",
+    "inputs_json": {
+      "title": "P1.0 E2E Test Report",
+      "content": "This is a test report for P1.0 E2E testing"
+    },
+    "started_at": "2025-10-17T03:58:34",
+    "finished_at": "2025-10-17T03:58:34",
+    "created_at": "2025-10-17T11:58:33",
+    "render_error": null
+  },
+  {
+    "id": "task_8fc25272fc58",
+    "template_id": "tpl_6b8db08bf334",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "1231"
+    },
+    "started_at": "2025-10-21T09:44:20",
+    "finished_at": "2025-10-21T09:44:57",
+    "created_at": "2025-10-21T17:44:19",
+    "render_error": null
+  },
+  {
+    "id": "task_90ef49888896",
+    "template_id": "tpl_aa7824766275",
+    "status": "success",
+    "inputs_json": {
+      "company_name": "中国移动",
+      "report_title": "复杂报告",
+      "analysis_focus": "人工智能",
+      "target_audience": "技术团队"
+    },
+    "started_at": "2025-10-17T03:13:23",
+    "finished_at": "2025-10-17T03:13:39",
+    "created_at": "2025-10-17T11:13:23",
+    "render_error": null
+  },
+  {
+    "id": "task_97dc3b7d2fd9",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174 "
+    },
+    "started_at": "2025-10-19T07:45:01",
+    "finished_at": "2025-10-19T07:45:01",
+    "created_at": "2025-10-19T15:45:00",
+    "render_error": null
+  },
+  {
+    "id": "task_982ddf5c4c56",
+    "template_id": "tpl_aa7824766275",
+    "status": "failed",
+    "inputs_json": {
+      "company_name": "中国移动",
+      "report_title": "复杂报告",
+      "analysis_focus": "人工智能",
+      "target_audience": "技术团队"
+    },
+    "started_at": "2025-10-17T02:57:08",
+    "finished_at": "2025-10-17T02:57:24",
+    "created_at": "2025-10-17T10:57:07",
+    "render_error": null
+  },
+  {
+    "id": "task_9abf94bb6d58",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T07:40:17",
+    "finished_at": "2025-10-17T07:40:17",
+    "created_at": "2025-10-17T15:40:16",
+    "render_error": null
+  },
+  {
+    "id": "task_9eecc52e1835",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T02:21:58",
+    "finished_at": "2025-10-20T02:21:58",
+    "created_at": "2025-10-20T10:21:57",
+    "render_error": null
+  },
+  {
+    "id": "task_9fff10e59ac7",
+    "template_id": "tpl_86b6a5129a4d",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T09:33:57",
+    "finished_at": "2025-10-22T09:33:57",
+    "created_at": "2025-10-22T17:33:57",
+    "render_error": null
+  },
+  {
+    "id": "task_a01e92abdd4d",
+    "template_id": "tpl_6696b5d9c4bb",
+    "status": "failed",
+    "inputs_json": {},
+    "started_at": "2025-10-21T08:47:04",
+    "finished_at": "2025-10-21T08:47:04",
+    "created_at": "2025-10-21T16:47:03",
+    "render_error": null
+  },
+  {
+    "id": "task_a1670861611a",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "success",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 16000
+    },
+    "started_at": "2025-10-29T08:25:07",
+    "finished_at": "2025-10-29T08:25:10",
+    "created_at": "2025-10-29T16:25:06",
+    "render_error": null
+  },
+  {
+    "id": "task_a1689565c256",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T10:13:55",
+    "finished_at": "2025-10-17T10:13:55",
+    "created_at": "2025-10-17T18:13:55",
+    "render_error": null
+  },
+  {
+    "id": "task_a39bf0dbd1e2",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T10:45:17",
+    "finished_at": "2025-10-17T10:45:17",
+    "created_at": "2025-10-17T18:45:16",
+    "render_error": null
+  },
+  {
+    "id": "task_a7204655d1fe",
+    "template_id": "tpl_6b8db08bf334",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "21312"
+    },
+    "started_at": "2025-10-21T09:35:45",
+    "finished_at": "2025-10-21T09:36:16",
+    "created_at": "2025-10-21T17:35:45",
+    "render_error": null
+  },
+  {
+    "id": "task_a83546d7e3e4",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T15:43:18",
+    "finished_at": "2025-10-22T15:43:34",
+    "created_at": "2025-10-22T23:43:17",
+    "render_error": null
+  },
+  {
+    "id": "task_a860e76fcd8b",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T10:10:05",
+    "finished_at": "2025-10-17T10:10:05",
+    "created_at": "2025-10-17T18:10:04",
+    "render_error": null
+  },
+  {
+    "id": "task_ac15d77fabc5",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-23T09:12:12",
+    "finished_at": "2025-10-23T09:13:01",
+    "created_at": "2025-10-23T17:12:11",
+    "render_error": null
+  },
+  {
+    "id": "task_ac2c98903716",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "213213"
+    },
+    "started_at": "2025-10-17T09:00:45",
+    "finished_at": "2025-10-17T09:00:45",
+    "created_at": "2025-10-17T17:00:44",
+    "render_error": null
+  },
+  {
+    "id": "task_ad6628de5bf6",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T16:22:45",
+    "finished_at": "2025-10-22T16:24:11",
+    "created_at": "2025-10-23T00:22:44",
+    "render_error": null
+  },
+  {
+    "id": "task_ae27ce42f03e",
+    "template_id": "tpl_aa7824766275",
+    "status": "failed",
+    "inputs_json": {
+      "company_name": "中国移动",
+      "report_title": "复杂报告",
+      "analysis_focus": "人工智能",
+      "target_audience": "技术团队"
+    },
+    "started_at": "2025-10-17T02:58:31",
+    "finished_at": "2025-10-17T02:58:43",
+    "created_at": "2025-10-17T10:58:30",
+    "render_error": null
+  },
+  {
+    "id": "task_b01397c8e79c",
+    "template_id": "tpl_6b8db08bf334",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "21312"
+    },
+    "started_at": "2025-10-22T02:45:34",
+    "finished_at": "2025-10-22T02:46:27",
+    "created_at": "2025-10-22T10:45:34",
+    "render_error": null
+  },
+  {
+    "id": "task_b1a48d5dad10",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T06:52:36",
+    "finished_at": "2025-10-20T06:52:47",
+    "created_at": "2025-10-20T14:52:36",
+    "render_error": null
+  },
+  {
+    "id": "task_b341086b9259",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T06:25:07",
+    "finished_at": "2025-10-22T06:25:33",
+    "created_at": "2025-10-22T14:25:06",
+    "render_error": null
+  },
+  {
+    "id": "task_b5c7c81fe95a",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "213213213123"
+    },
+    "started_at": "2025-10-17T09:03:09",
+    "finished_at": "2025-10-17T09:03:09",
+    "created_at": "2025-10-17T17:03:08",
+    "render_error": null
+  },
+  {
+    "id": "task_b63cc1f83496",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-23T09:14:38",
+    "finished_at": "2025-10-23T09:15:12",
+    "created_at": "2025-10-23T17:14:37",
+    "render_error": null
+  },
+  {
+    "id": "task_b65bc747d8ad",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T15:02:04",
+    "finished_at": "2025-10-22T15:02:14",
+    "created_at": "2025-10-22T23:02:03",
+    "render_error": null
+  },
+  {
+    "id": "task_b715a9ea4c39",
+    "template_id": "tpl_3059c79aa22c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T09:23:19",
+    "finished_at": "2025-10-22T09:23:19",
+    "created_at": "2025-10-22T17:23:19",
+    "render_error": null
+  },
+  {
+    "id": "task_b7c2ad0731e3",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_8d46934e172c": {
+        "title": "主模板标题测试",
+        "content": "主模板内容测试"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "子模板1标题测试",
+        "content1": "子模板1内容测试"
+      }
+    },
+    "started_at": "2025-10-29T09:13:59",
+    "finished_at": "2025-10-29T09:13:59",
+    "created_at": "2025-10-29T17:13:58",
+    "render_error": null
+  },
+  {
+    "id": "task_b80375ad5ce1",
+    "template_id": "tpl_c23046ab76c0",
+    "status": "running",
+    "inputs_json": {},
+    "started_at": "2025-10-21T07:42:33",
+    "finished_at": null,
+    "created_at": "2025-10-21T15:42:33",
+    "render_error": null
+  },
+  {
+    "id": "task_b819aaf09f20",
+    "template_id": "tpl_6b8db08bf334",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "121312"
+    },
+    "started_at": "2025-10-22T02:42:43",
+    "finished_at": "2025-10-22T02:43:14",
+    "created_at": "2025-10-22T10:42:42",
+    "render_error": null
+  },
+  {
+    "id": "task_b8e1550ae53c",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-21T07:48:42",
+    "finished_at": "2025-10-21T07:49:02",
+    "created_at": "2025-10-21T15:48:42",
+    "render_error": null
+  },
+  {
+    "id": "task_b91da0f4f5bc",
+    "template_id": "tpl_86b6a5129a4d",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-27T09:05:09",
+    "finished_at": "2025-10-27T09:05:09",
+    "created_at": "2025-10-27T17:05:09",
+    "render_error": null
+  },
+  {
+    "id": "task_bff5bcbf04aa",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_8d46934e172c": {
+        "title": "主模板标题测试",
+        "content": "主模板内容测试"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "子模板1标题测试",
+        "content1": "子模板1内容测试"
+      }
+    },
+    "started_at": "2025-10-29T09:18:13",
+    "finished_at": "2025-10-29T09:18:13",
+    "created_at": "2025-10-29T17:18:13",
+    "render_error": null
+  },
+  {
+    "id": "task_c15868b4f4a1",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "success",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 1
+    },
+    "started_at": "2025-10-30T03:53:37",
+    "finished_at": "2025-10-30T03:53:43",
+    "created_at": "2025-10-30T11:53:37",
+    "render_error": null
+  },
+  {
+    "id": "task_c21bdf2010ea",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_07cf7b90769d": {
+        "title2": "3",
+        "content2": "3"
+      },
+      "tpl_7ffa8cbd64f0": {
+        "title3": "4",
+        "content3": "4"
+      },
+      "tpl_8d46934e172c": {
+        "title": "1",
+        "content": "1"
+      },
+      "tpl_dd8081645650": {
+        "title1": "5"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "2",
+        "content1": "2"
+      }
+    },
+    "started_at": "2025-10-29T11:25:08",
+    "finished_at": "2025-10-29T11:25:08",
+    "created_at": "2025-10-29T19:25:07",
+    "render_error": null
+  },
+  {
+    "id": "task_c265d1a21e61",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-31T07:50:16",
+    "finished_at": "2025-10-31T07:50:49",
+    "created_at": "2025-10-31T15:50:15",
+    "render_error": null
+  },
+  {
+    "id": "task_c671cd986995",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "success",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 10000
+    },
+    "started_at": "2025-10-29T02:28:22",
+    "finished_at": "2025-10-29T02:28:28",
+    "created_at": "2025-10-29T10:28:22",
+    "render_error": null
+  },
+  {
+    "id": "task_c96e75ff76a5",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T07:15:16",
+    "finished_at": "2025-10-17T07:15:16",
+    "created_at": "2025-10-17T15:15:15",
+    "render_error": null
+  },
+  {
+    "id": "task_c9eaa61a4284",
+    "template_id": "tpl_e710aea7c613",
+    "status": "failed",
+    "inputs_json": {
+      "title1": "1",
+      "content1": "1"
+    },
+    "started_at": "2025-10-29T08:57:26",
+    "finished_at": "2025-10-29T08:57:26",
+    "created_at": "2025-10-29T16:57:26",
+    "render_error": null
+  },
+  {
+    "id": "task_ca9caf9f3374",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "success",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 1
+    },
+    "started_at": "2025-10-29T08:20:06",
+    "finished_at": "2025-10-29T08:20:10",
+    "created_at": "2025-10-29T16:20:06",
+    "render_error": null
+  },
+  {
+    "id": "task_cc8bfa0a4089",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T09:12:50",
+    "finished_at": "2025-10-17T09:12:51",
+    "created_at": "2025-10-17T17:12:50",
+    "render_error": null
+  },
+  {
+    "id": "task_ccbb375a980d",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "running",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-23T08:56:07",
+    "finished_at": null,
+    "created_at": "2025-10-23T16:56:07",
+    "render_error": null
+  },
+  {
+    "id": "task_ce04d70b190f",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T09:49:25",
+    "finished_at": "2025-10-22T09:49:48",
+    "created_at": "2025-10-22T17:49:25",
+    "render_error": null
+  },
+  {
+    "id": "task_ce2c11ab3200",
+    "template_id": "tpl_b1b051d2950d",
+    "status": "running",
+    "inputs_json": {
+      "product_id": "12312"
+    },
+    "started_at": "2025-10-21T08:00:18",
+    "finished_at": null,
+    "created_at": "2025-10-21T16:00:17",
+    "render_error": null
+  },
+  {
+    "id": "task_cf18f923676c",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "title": "11",
+      "content": "1"
+    },
+    "started_at": "2025-10-28T06:33:30",
+    "finished_at": "2025-10-28T06:33:30",
+    "created_at": "2025-10-28T14:33:29",
+    "render_error": null
+  },
+  {
+    "id": "task_cf8e6a155d6c",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_07cf7b90769d": {
+        "title2": "2",
+        "content2": "2"
+      },
+      "tpl_7ffa8cbd64f0": {
+        "title3": "3",
+        "content3": "3"
+      },
+      "tpl_8d46934e172c": {
+        "title": "0",
+        "content": "0"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "1",
+        "content1": "1"
+      }
+    },
+    "started_at": "2025-10-28T07:33:30",
+    "finished_at": "2025-10-28T07:33:30",
+    "created_at": "2025-10-28T15:33:30",
+    "render_error": null
+  },
+  {
+    "id": "task_cfa89d92e5dc",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T09:21:36",
+    "finished_at": "2025-10-17T09:21:36",
+    "created_at": "2025-10-17T17:21:36",
+    "render_error": null
+  },
+  {
+    "id": "task_d06db7642c04",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-11-04T02:52:07",
+    "finished_at": "2025-11-04T02:52:07",
+    "created_at": "2025-11-04T10:52:06",
+    "render_error": null
+  },
+  {
+    "id": "task_d18930a0a45f",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "success",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 10000
+    },
+    "started_at": "2025-10-29T02:21:35",
+    "finished_at": "2025-10-29T02:21:35",
+    "created_at": "2025-10-29T10:21:34",
+    "render_error": null
+  },
+  {
+    "id": "task_d2161f645a78",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "failed",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 1
+    },
+    "started_at": "2025-10-29T04:01:15",
+    "finished_at": "2025-10-29T04:01:15",
+    "created_at": "2025-10-29T12:01:15",
+    "render_error": null
+  },
+  {
+    "id": "task_d2f5c7212aa7",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-19T08:11:04",
+    "finished_at": "2025-10-19T08:11:05",
+    "created_at": "2025-10-19T16:11:04",
+    "render_error": null
+  },
+  {
+    "id": "task_d35b512f8c47",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T02:31:18",
+    "finished_at": "2025-10-20T02:31:19",
+    "created_at": "2025-10-20T10:31:18",
+    "render_error": null
+  },
+  {
+    "id": "task_d3bf635240a0",
+    "template_id": "tpl_3cee3225248c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "JYRC1951",
+      "wgid2": "JYRC1951"
+    },
+    "started_at": "2025-10-27T09:10:25",
+    "finished_at": "2025-10-27T09:12:26",
+    "created_at": "2025-10-27T17:10:25",
+    "render_error": null
+  },
+  {
+    "id": "task_d46cd210eef6",
+    "template_id": "tpl_6b8db08bf334",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "21312",
+      "product_id2": "231312"
+    },
+    "started_at": "2025-10-23T07:35:04",
+    "finished_at": "2025-10-23T07:35:07",
+    "created_at": "2025-10-23T15:35:04",
+    "render_error": null
+  },
+  {
+    "id": "task_d510ff8cb0d4",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T07:39:31",
+    "finished_at": "2025-10-17T07:39:32",
+    "created_at": "2025-10-17T15:39:31",
+    "render_error": null
+  },
+  {
+    "id": "task_d56d0b5b416e",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_8d46934e172c": {
+        "title": "主模板标题测试",
+        "content": "主模板内容测试"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "子模板1标题测试",
+        "content1": "子模板1内容测试"
+      }
+    },
+    "started_at": "2025-10-29T09:15:33",
+    "finished_at": "2025-10-29T09:15:33",
+    "created_at": "2025-10-29T17:15:33",
+    "render_error": null
+  },
+  {
+    "id": "task_d8155c037f5f",
+    "template_id": "tpl_86b6a5129a4d",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T10:05:12",
+    "finished_at": "2025-10-22T10:05:12",
+    "created_at": "2025-10-22T18:05:12",
+    "render_error": null
+  },
+  {
+    "id": "task_d83200665964",
+    "template_id": "tpl_3cee3225248c",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-24T01:39:14",
+    "finished_at": "2025-10-24T01:39:58",
+    "created_at": "2025-10-24T09:39:13",
+    "render_error": null
+  },
+  {
+    "id": "task_d9b8aefcb721",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "failed",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 10000
+    },
+    "started_at": "2025-10-29T07:36:30",
+    "finished_at": "2025-10-29T07:36:34",
+    "created_at": "2025-10-29T15:36:30",
+    "render_error": {
+      "timestamp": "2025-10-29T07:36:33.762039",
+      "error_type": "TemplateRenderError",
+      "error_message": "Unexpected error during rendering: object of type 'builtin_function_or_method' has no len()"
+    }
+  },
+  {
+    "id": "task_da7ee925690d",
+    "template_id": "tpl_07cf7b90769d",
+    "status": "success",
+    "inputs_json": {
+      "title": "2",
+      "content": "2"
+    },
+    "started_at": "2025-10-28T06:30:19",
+    "finished_at": "2025-10-28T06:30:19",
+    "created_at": "2025-10-28T14:30:18",
+    "render_error": null
+  },
+  {
+    "id": "task_db0c8fc38c9d",
+    "template_id": "tpl_86b6a5129a4d",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T10:01:48",
+    "finished_at": "2025-10-22T10:01:48",
+    "created_at": "2025-10-22T18:01:48",
+    "render_error": null
+  },
+  {
+    "id": "task_dbf95321dc56",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T10:27:51",
+    "finished_at": "2025-10-17T10:27:51",
+    "created_at": "2025-10-17T18:27:51",
+    "render_error": null
+  },
+  {
+    "id": "task_dc90721f15ae",
+    "template_id": "tpl_b1b051d2950d",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "阿松大"
+    },
+    "started_at": "2025-10-21T09:21:40",
+    "finished_at": "2025-10-21T09:21:59",
+    "created_at": "2025-10-21T17:21:39",
+    "render_error": null
+  },
+  {
+    "id": "task_de4afa2f05d2",
+    "template_id": "tpl_3a557199010b",
+    "status": "failed",
+    "inputs_json": {},
+    "started_at": "2025-10-21T08:45:39",
+    "finished_at": "2025-10-21T08:45:39",
+    "created_at": "2025-10-21T16:45:38",
+    "render_error": null
+  },
+  {
+    "id": "task_e04cdc9348fe",
+    "template_id": "tpl_3cee3225248c",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-24T01:36:25",
+    "finished_at": "2025-10-24T01:37:04",
+    "created_at": "2025-10-24T09:36:24",
+    "render_error": null
+  },
+  {
+    "id": "task_e5ae74b98d0b",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "tpl_8d46934e172c": {
+        "title": "1",
+        "content": "1"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "2",
+        "content1": "2"
+      }
+    },
+    "started_at": "2025-10-29T09:26:28",
+    "finished_at": "2025-10-29T09:26:28",
+    "created_at": "2025-10-29T17:26:27",
+    "render_error": null
+  },
+  {
+    "id": "task_e5d1994ba061",
+    "template_id": "tpl_b1b051d2950d",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "全额万绮雯"
+    },
+    "started_at": "2025-10-21T09:30:43",
+    "finished_at": "2025-10-21T09:30:56",
+    "created_at": "2025-10-21T17:30:42",
+    "render_error": null
+  },
+  {
+    "id": "task_e638aa0efcc0",
+    "template_id": "tpl_3cee3225248c",
+    "status": "cancelled",
+    "inputs_json": {
+      "wgid": "TEST003"
+    },
+    "started_at": "2025-10-24T01:38:38",
+    "finished_at": "2025-10-24T01:38:38",
+    "created_at": "2025-10-24T09:38:37",
+    "render_error": null
+  },
+  {
+    "id": "task_ea568fc7579d",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-17T10:25:28",
+    "finished_at": "2025-10-17T10:25:28",
+    "created_at": "2025-10-17T18:25:28",
+    "render_error": null
+  },
+  {
+    "id": "task_ea883e5333a8",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-23T07:19:15",
+    "finished_at": "2025-10-23T07:20:56",
+    "created_at": "2025-10-23T15:19:15",
+    "render_error": null
+  },
+  {
+    "id": "task_eb051e6fd4ce",
+    "template_id": "tpl_86b6a5129a4d",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T09:18:12",
+    "finished_at": "2025-10-22T09:18:12",
+    "created_at": "2025-10-22T17:18:12",
+    "render_error": null
+  },
+  {
+    "id": "task_eecfc26f70b7",
+    "template_id": "tpl_3059c79aa22c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T08:47:58",
+    "finished_at": "2025-10-22T08:47:58",
+    "created_at": "2025-10-22T16:47:57",
+    "render_error": null
+  },
+  {
+    "id": "task_efe30dd83ff9",
+    "template_id": "tpl_6b8db08bf334",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "12312"
+    },
+    "started_at": "2025-10-22T03:46:34",
+    "finished_at": "2025-10-22T03:46:57",
+    "created_at": "2025-10-22T11:46:34",
+    "render_error": null
+  },
+  {
+    "id": "task_f0213fce9b44",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-20T07:05:11",
+    "finished_at": "2025-10-20T07:05:12",
+    "created_at": "2025-10-20T15:05:11",
+    "render_error": null
+  },
+  {
+    "id": "task_f146c14e8c98",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "failed",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 1
+    },
+    "started_at": "2025-10-29T06:43:31",
+    "finished_at": "2025-10-29T06:43:31",
+    "created_at": "2025-10-29T14:43:31",
+    "render_error": null
+  },
+  {
+    "id": "task_f2a251ced631",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "microgrid_db"
+    },
+    "started_at": "2025-10-17T07:40:28",
+    "finished_at": "2025-10-17T07:40:28",
+    "created_at": "2025-10-17T15:40:28",
+    "render_error": null
+  },
+  {
+    "id": "task_f2f4cdc4b3ae",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-23T08:42:16",
+    "finished_at": "2025-10-23T08:44:17",
+    "created_at": "2025-10-23T16:42:16",
+    "render_error": null
+  },
+  {
+    "id": "task_f689b142d786",
+    "template_id": "tpl_8d46934e172c",
+    "status": "success",
+    "inputs_json": {
+      "title": "1",
+      "content": "1"
+    },
+    "started_at": "2025-10-28T06:35:14",
+    "finished_at": "2025-10-28T06:35:14",
+    "created_at": "2025-10-28T14:35:14",
+    "render_error": null
+  },
+  {
+    "id": "task_f7175823be24",
+    "template_id": "tpl_6b8db08bf334",
+    "status": "success",
+    "inputs_json": {
+      "product_id": "12312"
+    },
+    "started_at": "2025-10-22T03:35:36",
+    "finished_at": "2025-10-22T03:36:14",
+    "created_at": "2025-10-22T11:35:35",
+    "render_error": null
+  },
+  {
+    "id": "task_fae541a18a34",
+    "template_id": "tpl_21c2afbe565c",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-19T07:43:07",
+    "finished_at": "2025-10-19T07:43:08",
+    "created_at": "2025-10-19T15:43:07",
+    "render_error": null
+  },
+  {
+    "id": "task_fb2d54d24c0d",
+    "template_id": "tpl_e71f1274aa2f",
+    "status": "failed",
+    "inputs_json": {
+      "department_name": "技术部",
+      "min_salary_value": 1
+    },
+    "started_at": "2025-10-29T03:56:27",
+    "finished_at": "2025-10-29T03:56:27",
+    "created_at": "2025-10-29T11:56:26",
+    "render_error": null
+  },
+  {
+    "id": "task_fb69acab4777",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T06:20:06",
+    "finished_at": "2025-10-22T06:20:19",
+    "created_at": "2025-10-22T14:20:05",
+    "render_error": null
+  },
+  {
+    "id": "task_fc13341f22eb",
+    "template_id": "tpl_f202f946b0da",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-22T10:13:15",
+    "finished_at": "2025-10-22T10:13:33",
+    "created_at": "2025-10-22T18:13:14",
+    "render_error": null
+  },
+  {
+    "id": "task_fd74fc72a90e",
+    "template_id": "tpl_a8a2a615b6fb",
+    "status": "failed",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-23T08:57:36",
+    "finished_at": "2025-10-23T09:18:27",
+    "created_at": "2025-10-23T16:57:35",
+    "render_error": null
+  },
+  {
+    "id": "task_fea0fa82f68a",
+    "template_id": "tpl_ca48a636d3cc",
+    "status": "running",
+    "inputs_json": {
+      "image_analysis": "（Vision AI功能需要OpenAI API Key）"
+    },
+    "started_at": "2025-10-21T07:40:50",
+    "finished_at": null,
+    "created_at": "2025-10-21T15:40:49",
+    "render_error": null
+  },
+  {
+    "id": "task_ff3d307772e5",
+    "template_id": "tpl_3cee3225248c",
+    "status": "success",
+    "inputs_json": {
+      "wgid": "ZQGY0174"
+    },
+    "started_at": "2025-10-23T09:30:18",
+    "finished_at": "2025-10-23T09:31:35",
+    "created_at": "2025-10-23T17:30:17",
+    "render_error": null
+  },
+  {
+    "id": "task_test_20251029091317",
+    "template_id": "tpl_8d46934e172c",
+    "status": "pending",
+    "inputs_json": {
+      "tpl_8d46934e172c": {
+        "title": "主模板标题测试",
+        "content": "主模板内容测试"
+      },
+      "tpl_e710aea7c613": {
+        "title1": "子模板1标题测试",
+        "content1": "子模板1内容测试"
+      }
+    },
+    "started_at": null,
+    "finished_at": null,
+    "created_at": "2025-10-29T17:13:17",
+    "render_error": null
+  }
+]

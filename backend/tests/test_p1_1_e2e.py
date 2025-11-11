@@ -1,5 +1,6 @@
 """End-to-end tests for P1.1 Image Support"""
 
+import os
 import pytest
 import httpx
 import asyncio

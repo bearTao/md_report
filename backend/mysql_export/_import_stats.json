@@ -1,0 +1,74 @@
+{
+  "import_time": "2025-11-10T14:34:31.364873",
+  "target_database": "postgresql",
+  "tables": {
+    "agent_session_states": {
+      "row_count": 0,
+      "status": "failed",
+      "error": "agent_session_states"
+    },
+    "ai_provider_keys": {
+      "row_count": 1,
+      "expected_count": 1,
+      "match": true,
+      "status": "success"
+    },
+    "chat_messages": {
+      "row_count": 0,
+      "status": "failed",
+      "error": "Expecting value: line 24 column 13 (char 2364)"
+    },
+    "chat_rag_chunks": {
+      "row_count": 0,
+      "expected_count": 0,
+      "match": true,
+      "status": "success"
+    },
+    "chat_sessions": {
+      "row_count": 0,
+      "status": "failed",
+      "error": "Expecting value: line 15 column 19 (char 335)"
+    },
+    "db_connections": {
+      "row_count": 10,
+      "expected_count": 10,
+      "match": true,
+      "status": "success"
+    },
+    "execution_logs": {
+      "row_count": 2092,
+      "expected_count": 2092,
+      "match": true,
+      "status": "success"
+    },
+    "generation_task_variables": {
+      "row_count": 1789,
+      "expected_count": 1789,
+      "match": true,
+      "status": "success"
+    },
+    "generation_tasks": {
+      "row_count": 168,
+      "expected_count": 168,
+      "match": true,
+      "status": "success"
+    },
+    "predefined_tags": {
+      "row_count": 0,
+      "status": "failed",
+      "error": "predefined_tags"
+    },
+    "reports": {
+      "row_count": 110,
+      "expected_count": 110,
+      "match": true,
+      "status": "success"
+    },
+    "templates": {
+      "row_count": 19,
+      "expected_count": 19,
+      "match": true,
+      "status": "success"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "id": "013d0163-cc3e-4886-acb7-ad6c1ca66761",
+    "session_name": null,
+    "is_auto_named": "true",
+    "report_id": "rpt_e9a999584314",
+    "tools_config": [
+      "sql_query",
+      "api_call",
+      "template_search"
+    ],
+    "message_count": 0,
+    "agent_operation_count": 0,
+    "total_tokens": 0,
+    "total_cost": 
