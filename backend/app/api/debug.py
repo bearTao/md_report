@@ -88,10 +88,46 @@ async def debug_render(
             user_inputs=request.user_inputs,
             metadata=metadata
         )
-        
+
         # Get AI config
         openai_api_key, openai_api_base = get_ai_config(db)
         
+        # Load and register database connections from database
+        from app.models.db_models import DBConnection
+        from app.connectors.database import db_connector
+        
+        db_connections = db.query(DBConnection).filter(
+            DBConnection.is_active == "true"
+        ).all()
+        
+        for db_conn in db_connections:
+            try:
+                # Build connection URL
+                engine_dialects = {
+                    "postgresql": "postgresql+psycopg2",
+                    "mysql": "mysql+pymysql",
+                    "sqlserver": "mssql+pyodbc",
+                    "oracle": "oracle+cx_oracle"
+                }
+                
+                dialect = engine_dialects.get(db_conn.engine.value, db_conn.engine.value)
+                from urllib.parse import quote_plus
+                password = db_conn.password_ciphertext  # TODO: Decrypt if encrypted
+                
+                connection_url = f"{dialect}://{db_conn.username}:{quote_plus(password)}@{db_conn.host}:{db_conn.port}/{db_conn.database}"
+                
+                # Register connection
+                db_connector.register_connection(
+                    name=db_conn.name,
+                    connection_url_or_engine=connection_url,
+                    pool_size=5,
+                    max_overflow=10
+                )
+                
+            except Exception as e:
+                # Log error but continue - some connections might fail but others should work
+                pass
+
         # Create scheduler and execute all variables
         scheduler = ExecutionScheduler(
             openai_api_key=openai_api_key,
