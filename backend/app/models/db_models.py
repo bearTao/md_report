@@ -159,3 +159,101 @@ class ExecutionLog(Base):
     template_id = Column(String(50), nullable=True)  # 所属模板ID
     template_path = Column(String(500), nullable=True)  # 完整层级路径
 
+
+class ConversationSessionStatus(str, enum.Enum):
+    """对话会话状态枚举"""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    COMPLETED = "completed"
+
+
+class ConversationSession(Base):
+    """
+    对话会话模型
+    
+    用于管理报告修改的对话会话生命周期,每个报告可以有一个活跃的会话。
+    会话包含多轮对话交互和上下文信息。
+    """
+    __tablename__ = "conversation_sessions"
+    
+    id = Column(String(50), primary_key=True)
+    report_id = Column(String(50), nullable=False, index=True)
+    status = Column(String(50), nullable=False, default="active")
+    context_summary = Column(Text, nullable=True)  # 对话上下文总结（长对话时使用）
+    last_activity_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ConversationTurn(Base):
+    """
+    对话轮次模型
+    
+    存储每一轮用户输入和系统响应,用于构建对话历史和上下文理解。
+    """
+    __tablename__ = "conversation_turns"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(String(50), nullable=False, index=True)
+    turn_number = Column(Integer, nullable=False)  # 该会话中的轮次编号（从1开始）
+    user_request = Column(Text, nullable=False)  # 用户的修改请求
+    parsed_intents = Column(JSON, nullable=True)  # 解析出的意图列表
+    operations_executed = Column(JSON, nullable=True)  # 执行的操作列表
+    system_response = Column(Text, nullable=True)  # 系统响应说明
+    report_version = Column(Integer, nullable=True)  # 关联的报告状态版本号
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class ReportState(Base):
+    """
+    报告状态模型
+    
+    存储报告在每个版本的完整状态,包括所有变量值、模板内容和元数据。
+    支持状态回滚和版本追踪。
+    """
+    __tablename__ = "report_states"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    report_id = Column(String(50), nullable=False, index=True)
+    session_id = Column(String(50), nullable=False, index=True)
+    version = Column(Integer, nullable=False)  # 版本号（从1开始递增）
+    template_id = Column(String(50), nullable=False)  # 原始模板ID
+    template_content = Column(Text, nullable=True)  # 临时模板内容（如果被修改）
+    template_metadata = Column(JSON, nullable=True)  # 临时模板元数据（如果被修改）
+    variables_state = Column(JSON, nullable=False)  # 所有变量的状态（包括模板变量和运行时变量）
+    markdown_content = Column(Text, nullable=False)  # 该版本渲染后的Markdown内容
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class OperationType(str, enum.Enum):
+    """操作类型枚举"""
+    UPDATE_PARAMETER = "update_parameter"
+    REFINE_AI_CONTENT = "refine_ai_content"
+    ADD_SECTION = "add_section"
+    MODIFY_SECTION = "modify_section"
+    REMOVE_SECTION = "remove_section"
+
+
+class ReportModificationHistory(Base):
+    """
+    报告修改历史模型
+    
+    详细记录每次修改操作的审计信息,包括操作类型、影响范围、执行结果等。
+    """
+    __tablename__ = "report_modification_history"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    report_id = Column(String(50), nullable=False, index=True)
+    session_id = Column(String(50), nullable=False, index=True)
+    turn_id = Column(Integer, nullable=False)  # 关联的对话轮次ID
+    operation_type = Column(String(50), nullable=False)  # 操作类型
+    operation_details = Column(JSON, nullable=False)  # 操作详细信息（包括目标变量、新值等）
+    affected_variables = Column(JSON, nullable=True)  # 受影响的变量列表
+    from_version = Column(Integer, nullable=False)  # 修改前的版本号
+    to_version = Column(Integer, nullable=False)  # 修改后的版本号
+    success = Column(Boolean, default=True)  # 操作是否成功
+    error_message = Column(Text, nullable=True)  # 错误信息（如果失败）
+    duration_ms = Column(Integer, nullable=True)  # 执行时长（毫秒）
+    cost_usd = Column(Numeric(10, 4), nullable=True)  # LLM调用成本（美元）
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+

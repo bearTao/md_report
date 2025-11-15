@@ -5,9 +5,18 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 
-from app.main import app
+# 加载 .env 文件（从 backend 目录）
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
+
 from app.database import Base, get_db
+# 导入所有模型以确保它们注册到 Base.metadata 中（必须在导入 app.main 之前）
+from app.models import db_models  # noqa: F401
+from app.main import app
 
 
 # 测试数据库配置
@@ -21,8 +30,11 @@ if os.getenv("INTEGRATION_TEST") or os.getenv("CI"):
     TEST_DB_NAME = os.getenv("TEST_DB_NAME", "new_md_agent_test")
     SQLALCHEMY_DATABASE_URL = f"postgresql://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/{TEST_DB_NAME}"
 else:
-    # 单元测试：使用 SQLite 内存数据库
-    SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+    # 单元测试：使用 SQLite 临时文件数据库（在测试之间共享表定义）
+    import tempfile
+    test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+    test_db_file.close()
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{test_db_file.name}"
 
 # 创建引擎配置
 engine_kwargs = {
@@ -36,6 +48,9 @@ if "sqlite" in SQLALCHEMY_DATABASE_URL:
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, **engine_kwargs)
 
+# 在创建引擎后立即创建所有表（只创建一次）
+Base.metadata.create_all(bind=engine)
+
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -43,6 +58,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 def db_session():
     """Create a fresh database session for each test"""
     # Create tables if not exist
+    # 注意：对于 SQLite 内存数据库，表只需创建一次，但为了兼容性每次测试都创建
     Base.metadata.create_all(bind=engine)
     
     db = TestingSessionLocal()
@@ -58,7 +74,11 @@ def db_session():
         if dialect_name == "sqlite":
             # SQLite: 使用 DELETE (内存数据库，速度快)
             for table in reversed(Base.metadata.sorted_tables):
-                db.execute(text(f"DELETE FROM {table.name}"))
+                try:
+                    db.execute(text(f"DELETE FROM {table.name}"))
+                except Exception:
+                    # 表可能不存在，忽略错误
+                    pass
         elif dialect_name == "postgresql":
             # PostgreSQL: 使用 TRUNCATE
             for table in reversed(Base.metadata.sorted_tables):

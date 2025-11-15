@@ -1519,3 +1519,349 @@ async def get_task_logs(
         total=total
     )
 
+
+# ============================================================================
+# 报告修改相关API端点
+# ============================================================================
+
+@router.post("/{report_id}/modify")
+async def modify_report(
+    report_id: str,
+    user_request: str = Query(..., description="用户的修改请求"),
+    session_id: Optional[str] = Query(None, description="会话ID（可选）"),
+    db: Session = Depends(get_db)
+):
+    """
+    修改已生成的报告
+    
+    使用自然语言描述修改需求,系统将自动解析意图并执行修改。
+    支持以下修改类型:
+    - 参数更新: 修改输入参数并重新执行相关变量
+    - AI内容优化: 调整AI生成内容的提示词并重新生成
+    - 模板修改: 添加、修改或删除报告章节
+    
+    Args:
+        report_id: 报告ID
+        user_request: 用户的自然语言修改请求
+        session_id: 会话ID（可选,不提供则创建新会话）
+        db: 数据库会话
+    
+    Returns:
+        ReportModificationResponse: 修改结果
+    
+    Example:
+        POST /api/reports/report_abc123/modify?user_request=将时间范围改为最近一周
+    """
+    from app.services.agent.modification_agent import ReportModificationAgent
+    from app.schemas.modification_schemas import ReportModificationResponse
+    
+    try:
+        # 检查报告是否存在
+        report = db.query(Report).filter(Report.id == report_id).first()
+        if not report:
+            raise HTTPException(status_code=404, detail=f"报告不存在: {report_id}")
+        
+        # 创建修改代理
+        agent = ReportModificationAgent(db=db, websocket_manager=ws_manager)
+        
+        # 执行修改
+        result = await agent.modify_report(
+            report_id=report_id,
+            user_request=user_request,
+            session_id=session_id
+        )
+        
+        # 构建响应
+        if result.success:
+            operations_summary = [
+                f"{op.operation_type}: {op.details.variable_name if hasattr(op.details, 'variable_name') else 'N/A'}"
+                for op in result.operations
+            ]
+            
+            return ReportModificationResponse(
+                success=True,
+                session_id=result.session_id,
+                report_id=result.report_id,
+                new_version=result.metadata.to_version,
+                explanation=result.explanation,
+                operations_summary=operations_summary,
+                markdown_content=result.new_markdown_content,
+                metadata=result.metadata
+            )
+        else:
+            return ReportModificationResponse(
+                success=False,
+                session_id=result.session_id,
+                report_id=result.report_id,
+                new_version=result.metadata.to_version,
+                explanation=result.explanation,
+                operations_summary=[],
+                markdown_content="",
+                metadata=result.metadata,
+                error=result.error_message
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"报告修改失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"报告修改失败: {str(e)}"
+        )
+
+
+@router.get("/{report_id}/conversation")
+async def get_conversation_history(
+    report_id: str,
+    session_id: Optional[str] = Query(None, description="会话ID（可选）"),
+    db: Session = Depends(get_db)
+):
+    """
+    获取报告的对话历史
+    
+    返回指定报告和会话的完整对话历史,包括每轮的用户请求、
+    系统响应和执行的操作。
+    
+    Args:
+        report_id: 报告ID
+        session_id: 会话ID（可选,不提供则返回最新的活跃会话）
+        db: 数据库会话
+    
+    Returns:
+        ConversationHistoryResponse: 对话历史
+    
+    Example:
+        GET /api/reports/report_abc123/conversation
+        GET /api/reports/report_abc123/conversation?session_id=session_xyz
+    """
+    from app.models.db_models import ConversationSession, ConversationTurn
+    from app.schemas.modification_schemas import (
+        ConversationHistoryResponse,
+        ConversationTurn as ConversationTurnSchema,
+        ModificationIntent,
+        Operation
+    )
+    
+    try:
+        # 检查报告是否存在
+        report = db.query(Report).filter(Report.id == report_id).first()
+        if not report:
+            raise HTTPException(status_code=404, detail=f"报告不存在: {report_id}")
+        
+        # 确定会话ID
+        if session_id:
+            # 使用指定的会话
+            session = db.query(ConversationSession).filter(
+                ConversationSession.id == session_id,
+                ConversationSession.report_id == report_id
+            ).first()
+            
+            if not session:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"会话不存在或不属于该报告: {session_id}"
+                )
+        else:
+            # 获取最新的活跃会话
+            session = db.query(ConversationSession).filter(
+                ConversationSession.report_id == report_id,
+                ConversationSession.status == "active"
+            ).order_by(
+                ConversationSession.created_at.desc()
+            ).first()
+            
+            if not session:
+                # 没有活跃会话,返回空历史
+                return ConversationHistoryResponse(
+                    session_id="",
+                    report_id=report_id,
+                    turns=[],
+                    context_summary=None,
+                    current_version=1
+                )
+        
+        # 获取对话历史
+        db_turns = db.query(ConversationTurn).filter(
+            ConversationTurn.session_id == session.id
+        ).order_by(
+            ConversationTurn.turn_number.asc()
+        ).all()
+        
+        # 转换为Schema对象
+        turns = []
+        for db_turn in db_turns:
+            turn = ConversationTurnSchema(
+                turn_number=db_turn.turn_number,
+                user_request=db_turn.user_request,
+                parsed_intents=[
+                    ModificationIntent(**intent)
+                    for intent in (db_turn.parsed_intents or [])
+                ],
+                operations=[
+                    Operation(**op)
+                    for op in (db_turn.operations_executed or [])
+                ],
+                system_response=db_turn.system_response or "",
+                report_version=db_turn.report_version or 1,
+                timestamp=db_turn.created_at
+            )
+            turns.append(turn)
+        
+        # 获取当前版本号
+        from app.models.db_models import ReportState as DBReportState
+        latest_state = db.query(DBReportState).filter(
+            DBReportState.session_id == session.id
+        ).order_by(
+            DBReportState.version.desc()
+        ).first()
+        
+        current_version = latest_state.version if latest_state else 1
+        
+        return ConversationHistoryResponse(
+            session_id=session.id,
+            report_id=report_id,
+            turns=turns,
+            context_summary=session.context_summary,
+            current_version=current_version
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"获取对话历史失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"获取对话历史失败: {str(e)}"
+        )
+
+
+@router.post("/{report_id}/save-as-template")
+async def save_as_template(
+    report_id: str,
+    template_name: str = Query(..., description="新模板名称"),
+    template_description: Optional[str] = Query(None, description="模板描述"),
+    db: Session = Depends(get_db)
+):
+    """
+    将修改后的报告保存为新模板
+    
+    将当前报告的最新版本(包括修改后的模板和变量配置)保存为新的模板,
+    以便将来生成类似的报告。
+    
+    Args:
+        report_id: 报告ID
+        template_name: 新模板名称
+        template_description: 模板描述（可选）
+        db: 数据库会话
+    
+    Returns:
+        SaveAsTemplateResponse: 保存结果
+    
+    Example:
+        POST /api/reports/report_abc123/save-as-template?template_name=优化后的市场分析模板
+    """
+    from app.models.db_models import ConversationSession, ReportState as DBReportState
+    from app.schemas.modification_schemas import SaveAsTemplateResponse
+    
+    try:
+        # 检查报告是否存在
+        report = db.query(Report).filter(Report.id == report_id).first()
+        if not report:
+            raise HTTPException(status_code=404, detail=f"报告不存在: {report_id}")
+        
+        # 获取最新的活跃会话
+        session = db.query(ConversationSession).filter(
+            ConversationSession.report_id == report_id,
+            ConversationSession.status == "active"
+        ).order_by(
+            ConversationSession.created_at.desc()
+        ).first()
+        
+        if not session:
+            raise HTTPException(
+                status_code=400,
+                detail="没有找到活跃的修改会话,无法保存为模板"
+            )
+        
+        # 获取最新的报告状态
+        latest_state = db.query(DBReportState).filter(
+            DBReportState.session_id == session.id
+        ).order_by(
+            DBReportState.version.desc()
+        ).first()
+        
+        if not latest_state:
+            raise HTTPException(
+                status_code=400,
+                detail="没有找到报告状态快照,无法保存为模板"
+            )
+        
+        # 检查模板名称是否已存在
+        existing_template = db.query(Template).filter(
+            Template.name == template_name
+        ).first()
+        
+        if existing_template:
+            raise HTTPException(
+                status_code=400,
+                detail=f"模板名称已存在: {template_name}"
+            )
+        
+        # 创建新模板
+        template_id = f"template_{uuid.uuid4().hex[:12]}"
+        
+        # 使用临时模板内容(如果有),否则使用原始模板
+        template_content = latest_state.template_content
+        if not template_content:
+            # 从原始模板获取内容
+            original_template = db.query(Template).filter(
+                Template.id == latest_state.template_id
+            ).first()
+            if original_template:
+                template_content = original_template.template_content
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail="无法获取模板内容"
+                )
+        
+        # 使用临时元数据(如果有),否则使用原始模板元数据
+        template_metadata = latest_state.template_metadata
+        if not template_metadata:
+            original_template = db.query(Template).filter(
+                Template.id == latest_state.template_id
+            ).first()
+            if original_template:
+                template_metadata = original_template.metadata_json
+            else:
+                template_metadata = {}
+        
+        new_template = Template(
+            id=template_id,
+            name=template_name,
+            description=template_description or f"基于报告 {report_id} 创建的模板",
+            template_content=template_content,
+            metadata_json=template_metadata
+        )
+        
+        db.add(new_template)
+        db.commit()
+        
+        logger.info(f"成功将报告 {report_id} 保存为模板 {template_id}: {template_name}")
+        
+        return SaveAsTemplateResponse(
+            success=True,
+            template_id=template_id,
+            message=f"成功创建模板: {template_name}"
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"保存模板失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"保存模板失败: {str(e)}"
+        )
+
