@@ -26,8 +26,8 @@ import Editor from '@monaco-editor/react';
 import loader from '@monaco-editor/loader';
 import * as monaco from 'monaco-editor';
 import yaml from 'js-yaml';
-import ReactMarkdown from 'react-markdown';
 import { debugRender, type DebugVariableResult } from '../../api/debugApi';
+import { useMarkdownToHtml } from '../../hooks/useMarkdownToHtml';
 
 loader.config({ monaco });
 
@@ -36,6 +36,8 @@ const { Text } = Typography;
 const DebugTest = () => {
   const location = useLocation();
   const [form] = Form.useForm();
+  
+  // Markdown 转 HTML
 
   const [templateContent, setTemplateContent] = useState('# {{title}}\n\n{{content}}');
   const [metadataYaml, setMetadataYaml] = useState(`title:
@@ -57,6 +59,9 @@ content:
     placeholder: 请输入内容`);
   const [userInputFields, setUserInputFields] = useState<Array<{name: string, description: string, required: boolean}>>([]);
   const [renderedMarkdown, setRenderedMarkdown] = useState<string>('');
+  
+  // 转换渲染结果为 HTML
+  const renderedHtml = useMarkdownToHtml(renderedMarkdown);
   const [variableResults, setVariableResults] = useState<DebugVariableResult[]>([]);
   const [yamlError, setYamlError] = useState<string | null>(null);
 
@@ -322,7 +327,10 @@ content:
                       backgroundColor: '#fafafa',
                     }}
                   >
-                    <ReactMarkdown>{renderedMarkdown}</ReactMarkdown>
+                    <div 
+                      className="markdown-body"
+                      dangerouslySetInnerHTML={{ __html: renderedHtml }} 
+                    />
                   </div>
                 ) : (
                   <Alert
