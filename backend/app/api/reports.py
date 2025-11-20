@@ -285,42 +285,20 @@ async def execute_report_generation(
                 queued_at=task.created_at,
                 started_at=task.started_at
             )
-        # Load database connections from database
-        from app.models.db_models import DBConnection
-        from app.connectors.database import db_connector
+        # 按需注册数据库连接（仅注册模板实际使用的连接）
+        from app.utils.db_utils import ensure_connections_registered
         
-        db_connections = db_session.query(DBConnection).filter(
-            DBConnection.is_active == "true"
-        ).all()
+        registration_results = ensure_connections_registered(
+            metadata=metadata,
+            db_session=db_session
+        )
         
-        for db_conn in db_connections:
-            try:
-                # Build connection URL
-                engine_dialects = {
-                    "postgresql": "postgresql+psycopg2",
-                    "mysql": "mysql+pymysql",
-                    "sqlserver": "mssql+pyodbc",
-                    "oracle": "oracle+cx_oracle"
-                }
-                
-                dialect = engine_dialects.get(db_conn.engine.value, db_conn.engine.value)
-                from urllib.parse import quote_plus
-                password = db_conn.password_ciphertext  # TODO: Decrypt if encrypted
-                
-                connection_url = f"{dialect}://{db_conn.username}:{quote_plus(password)}@{db_conn.host}:{db_conn.port}/{db_conn.database}"
-                
-                # Register connection
-                db_connector.register_connection(
-                    name=db_conn.name,
-                    connection_url_or_engine=connection_url,
-                    pool_size=5,
-                    max_overflow=10
-                )
-                
-                logger.info(f"Registered database connection: {db_conn.name}")
-                
-            except Exception as e:
-                logger.error(f"Failed to register connection {db_conn.name}: {str(e)}")
+        # 检查是否有注册失败的连接
+        failed_connections = [name for name, success in registration_results.items() if not success]
+        if failed_connections:
+            error_msg = f"Failed to register required database connections: {failed_connections}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
         
         # Parse metadata to VariableMetadata objects
         parsed_metadata = {}
@@ -1554,12 +1532,33 @@ async def modify_report(
     """
     from app.services.agent.modification_agent import ReportModificationAgent
     from app.schemas.modification_schemas import ReportModificationResponse
+    from app.models.db_models import DBConnection
     
     try:
         # 检查报告是否存在
         report = db.query(Report).filter(Report.id == report_id).first()
         if not report:
             raise HTTPException(status_code=404, detail=f"报告不存在: {report_id}")
+        
+        # 获取模板的metadata，按需注册数据库连接
+        template = db.query(Template).filter(Template.id == report.template_id).first()
+        if not template:
+            raise HTTPException(status_code=404, detail=f"模板不存在: {report.template_id}")
+        
+        # 按需注册数据库连接（仅注册模板实际使用的连接）
+        from app.utils.db_utils import ensure_connections_registered
+        
+        registration_results = ensure_connections_registered(
+            metadata=template.metadata_json,
+            db_session=db
+        )
+        
+        # 检查是否有注册失败的连接
+        failed_connections = [name for name, success in registration_results.items() if not success]
+        if failed_connections:
+            error_msg = f"Failed to register required database connections: {failed_connections}"
+            logger.warning(error_msg)
+            # 注意：这里只记录警告，不中断修改流程，因为可能只修改不依赖数据库的部分
         
         # 创建修改代理
         agent = ReportModificationAgent(db=db, websocket_manager=ws_manager)
@@ -1736,6 +1735,92 @@ async def get_conversation_history(
         )
 
 
+@router.get("/{report_id}/sessions")
+async def get_conversation_sessions(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    获取报告的所有会话列表
+    
+    返回指定报告的所有对话会话的摘要信息，包括会话ID、创建时间、
+    最后活动时间、对话轮数和预览内容。
+    
+    Args:
+        report_id: 报告ID
+        db: 数据库会话
+    
+    Returns:
+        List[SessionSummary]: 会话摘要列表
+    
+    Example:
+        GET /api/reports/report_abc123/sessions
+    """
+    from app.models.db_models import ConversationSession, ConversationTurn
+    
+    try:
+        # 检查报告是否存在
+        report = db.query(Report).filter(Report.id == report_id).first()
+        if not report:
+            raise HTTPException(status_code=404, detail=f"报告不存在: {report_id}")
+        
+        # 获取该报告的所有会话，按创建时间倒序
+        sessions = db.query(ConversationSession).filter(
+            ConversationSession.report_id == report_id
+        ).order_by(
+            ConversationSession.created_at.desc()
+        ).all()
+        
+        # 构建会话摘要列表
+        session_summaries = []
+        for session in sessions:
+            # 获取该会话的对话轮数
+            turn_count = db.query(ConversationTurn).filter(
+                ConversationTurn.session_id == session.id
+            ).count()
+            
+            # 获取第一条对话作为预览
+            first_turn = db.query(ConversationTurn).filter(
+                ConversationTurn.session_id == session.id
+            ).order_by(
+                ConversationTurn.turn_number.asc()
+            ).first()
+            
+            preview = ""
+            if first_turn:
+                preview = first_turn.user_request[:50] + ("..." if len(first_turn.user_request) > 50 else "")
+            
+            # 获取最后活动时间
+            last_turn = db.query(ConversationTurn).filter(
+                ConversationTurn.session_id == session.id
+            ).order_by(
+                ConversationTurn.turn_number.desc()
+            ).first()
+            
+            last_activity_at = last_turn.created_at if last_turn else session.created_at
+            
+            session_summaries.append({
+                "session_id": session.id,
+                "report_id": report_id,
+                "created_at": session.created_at.isoformat() if session.created_at else None,
+                "last_activity_at": last_activity_at.isoformat() if last_activity_at else None,
+                "turn_count": turn_count,
+                "preview": preview,
+                "status": session.status
+            })
+        
+        return {"sessions": session_summaries, "total": len(session_summaries)}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"获取会话列表失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"获取会话列表失败: {str(e)}"
+        )
+
+
 @router.post("/{report_id}/save-as-template")
 async def save_as_template(
     report_id: str,
@@ -1863,5 +1948,102 @@ async def save_as_template(
         raise HTTPException(
             status_code=500,
             detail=f"保存模板失败: {str(e)}"
+        )
+
+
+# ============================================================================
+# 删除章节功能 API
+# ============================================================================
+
+@router.post("/agent/plan-delete")
+async def plan_delete_sections(
+    request: "PlanDeleteRequest",
+    db: Session = Depends(get_db)
+):
+    """
+    生成删除计划（阶段1）
+    
+    流程：
+    1. 用户输入删除请求
+    2. LLM 识别章节路径
+    3. 后端精确定位和验证
+    4. 返回待确认的章节列表
+    """
+    from app.services.agent.modification_agent import ReportModificationAgent
+    from app.schemas.modification_schemas import PlanDeleteRequest, BatchDeletePlan
+    
+    try:
+        # 创建 Agent
+        agent = ReportModificationAgent(db)
+        
+        # 生成删除计划
+        plan = await agent.plan_delete_sections(
+            user_message=request.user_message,
+            conversation_id=request.conversation_id
+        )
+        
+        return plan
+    
+    except ValueError as e:
+        logger.error(f"生成删除计划失败: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.exception(f"生成删除计划失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"生成删除计划失败: {str(e)}"
+        )
+
+
+@router.post("/agent/execute-delete")
+async def execute_delete_plan(
+    request: "ExecuteDeleteRequest",
+    db: Session = Depends(get_db)
+):
+    """
+    执行删除计划（阶段3）
+    
+    流程：
+    1. 用户逐个确认章节
+    2. 选择执行模式（删除并锁定 or 重新生成）
+    3. 执行操作
+    4. 返回结果
+    """
+    from app.services.agent.modification_agent import ReportModificationAgent
+    from app.schemas.modification_schemas import ExecuteDeleteRequest, DeleteExecutionResult
+    
+    try:
+        # 创建 Agent
+        agent = ReportModificationAgent(db)
+        
+        # 执行删除计划
+        result = await agent.execute_delete_plan(
+            plan_id=request.plan_id,
+            action=request.action,
+            decisions=request.decisions
+        )
+        
+        return result
+    
+    except ValueError as e:
+        logger.error(f"执行删除计划失败: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    except NotImplementedError as e:
+        logger.error(f"功能未实现: {str(e)}")
+        raise HTTPException(
+            status_code=501,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.exception(f"执行删除计划失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"执行删除计划失败: {str(e)}"
         )
 

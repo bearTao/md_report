@@ -69,6 +69,13 @@ class ParameterUpdateStrategy(ExecutionStrategy):
         start_time = datetime.now()
         
         try:
+            # 检查报告是否锁定
+            if not memory.report_state.is_editable():
+                raise ValueError(
+                    f"报告已锁定为静态版本（锁定时间：{memory.report_state.locked_at.strftime('%Y-%m-%d %H:%M')}），"
+                    f"无法修改参数。如需修改参数，请使用'重新生成'功能。"
+                )
+            
             # 获取目标变量
             variable_name = step.target_variable
             if not variable_name:
@@ -186,14 +193,73 @@ class ParameterUpdateStrategy(ExecutionStrategy):
             return var_info.value
         
         elif source_type in ["sql", "api", "ai_generation", "system", "image", "vision_ai"]:
-            # 需要重新执行的变量类型
-            # TODO: 集成ExecutionScheduler进行实际执行
-            # 目前暂时返回原值
-            logger.warning(
-                f"变量 {variable_name} 需要重新执行(类型: {source_type}), "
-                f"但集成尚未完成,保持原值"
+            # 使用ExecutionScheduler重新执行该变量
+            from app.core.models import VariableMetadata, VariableSource
+            
+            # 从报告状态中提取所有用户输入参数和构建完整的 metadata
+            user_inputs = {}
+            all_metadata = {}
+            
+            for var_name, var in memory.report_state.variables.items():
+                # 收集用户输入参数的值
+                if var.source == "user_input" and var.value is not None:
+                    user_inputs[var_name] = var.value
+                
+                # 为每个变量构建完整的 VariableMetadata
+                # 关键：将 var.source 和 var.metadata 合并
+                try:
+                    # 复制 metadata 字典，避免修改原始数据
+                    meta_dict = dict(var.metadata) if var.metadata else {}
+                    
+                    # 确保 source 字段存在（从 var.source 获取）
+                    if "source" not in meta_dict:
+                        meta_dict["source"] = var.source
+                    
+                    # 确保基础必需字段存在
+                    if "type" not in meta_dict:
+                        meta_dict["type"] = "string"
+                    if "description" not in meta_dict:
+                        meta_dict["description"] = f"Variable {var_name}"
+                    
+                    # 创建 VariableMetadata 对象
+                    all_metadata[var_name] = VariableMetadata(**meta_dict)
+                    
+                except Exception as e:
+                    logger.warning(f"解析变量 {var_name} 的 metadata 失败: {e}，使用默认配置")
+                    # 创建最小可用的 metadata
+                    all_metadata[var_name] = VariableMetadata(
+                        type="string",
+                        source=VariableSource(var.source) if var.source in [s.value for s in VariableSource] else VariableSource.USER_INPUT,
+                        description=f"Variable {var_name}",
+                        required=False
+                    )
+            
+            logger.info(f"重新执行变量 {variable_name}, user_inputs: {list(user_inputs.keys())}, metadata_count: {len(all_metadata)}")
+            
+            # 创建执行上下文
+            context = ExecutionContext(
+                task_id=f"reexec_{memory.session_id}",
+                template_id=memory.report_state.template_id,
+                user_inputs=user_inputs,
+                metadata=all_metadata  # 传递所有变量的完整 metadata
             )
-            return var_info.value
+            
+            # 使用调度器重新执行
+            scheduler = ExecutionScheduler()
+            results = await scheduler.execute_all(context)
+            result = results.get(variable_name)
+            
+            if result and result.value is not None:
+                var_info.value = result.value
+                var_info.last_updated = datetime.now()
+                logger.info(f"变量 {variable_name} 重新执行成功，获得新值")
+                return var_info.value
+            elif result and result.status == "failed":
+                logger.error(f"变量 {variable_name} 重新执行失败: {result.error}")
+                raise Exception(f"重新执行变量失败: {result.error}")
+            else:
+                logger.warning(f"变量 {variable_name} 重新执行未获得新值,保留原值")
+                return var_info.value
         
         else:
             logger.warning(f"未知的变量源类型: {source_type}")
@@ -217,9 +283,9 @@ class ParameterUpdateStrategy(ExecutionStrategy):
         dependents = []
         
         for var_name, var_info in memory.report_state.variables.items():
-            # 检查depends_on字段
-            depends_on = var_info.metadata.get("depends_on", [])
-            if isinstance(depends_on, list) and variable_name in depends_on:
+            # 检查dependencies字段
+            dependencies = var_info.metadata.get("dependencies", [])
+            if isinstance(dependencies, list) and variable_name in dependencies:
                 dependents.append(var_name)
         
         return dependents

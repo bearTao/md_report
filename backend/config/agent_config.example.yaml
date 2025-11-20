@@ -1,0 +1,41 @@
+# Agent配置文件示例
+# 复制此文件为 agent_config.yaml 并修改相关配置
+
+# API配置
+# 注意: API密钥也可以通过环境变量 OPENAI_API_KEY 设置
+api:
+  api_key: null  # OpenAI API密钥，建议通过环境变量设置
+  api_base: null  # API基础URL，用于代理或自定义端点
+  organization: null  # OpenAI组织ID（可选）
+
+# 意图解析器配置
+intent_parser:
+  enabled: true  # 是否启用意图解析器
+  max_retries: 2  # 最大重试次数
+  llm:
+    model: "gpt-4"  # 使用的模型
+    temperature: 0.1  # 生成温度，较低值更确定性
+    max_tokens: null  # 最大生成token数（null表示无限制）
+    timeout: 60  # 请求超时时间（秒）
+
+# 响应生成器配置
+explanation_generator:
+  use_llm: false  # 是否使用LLM生成响应（false表示使用模板）
+  llm:
+    model: "gpt-3.5-turbo"  # 使用较便宜的模型
+    temperature: 0.7  # 生成温度，较高值更有创造性
+    max_tokens: 500  # 限制响应长度
+    timeout: 30
+
+# AI内容优化配置
+ai_refinement:
+  fallback_enabled: true  # 是否启用fallback模式（LLM失败时的备选方案）
+  llm:
+    model: "gpt-4"  # 使用高质量模型
+    temperature: 0.7  # 平衡创造性和一致性
+    max_tokens: null
+    timeout: 90  # AI生成可能需要更长时间
+
+# 通用配置
+log_level: "INFO"  # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
+enable_performance_tracking: true  # 是否启用性能追踪

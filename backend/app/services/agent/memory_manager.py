@@ -374,7 +374,7 @@ class MemoryManager:
         
         self.db.commit()
     
-    def cleanup_inactive_sessions(self, inactive_hours: int = 24) -> int:
+    def cleanup_inactive_sessions(self, hours: int = 24, inactive_hours: int = None, days: int = None) -> int:
         """
         清理不活跃的会话
         
@@ -386,7 +386,8 @@ class MemoryManager:
         Returns:
             int: 清理的会话数量
         """
-        threshold = datetime.now() - timedelta(hours=inactive_hours)
+        threshold_hours = inactive_hours if inactive_hours is not None else (days * 24 if days is not None else hours)
+        threshold = datetime.now() - timedelta(hours=threshold_hours)
         
         inactive_sessions = self.db.query(ConversationSession).filter(
             ConversationSession.status == "active",
@@ -411,17 +412,62 @@ class MemoryManager:
         Returns:
             ReportState: 初始报告状态
         """
-        # TODO: 从report的task和template中提取变量信息
-        # 这需要访问GenerationTask和Template来获取完整的变量状态
-        # 暂时返回一个空的变量字典
+        from app.models.db_models import Template, GenerationTask
+        variables: Dict[str, VariableInfo] = {}
+        template_content = None
+        template_metadata = None
+        
+        # 加载模板
+        template = self.db.query(Template).filter(Template.id == report.template_id).first()
+        if template:
+            template_content = template.template_content
+            template_metadata = template.metadata_json or {}
+            
+            # 先从模板元数据构建变量（使用默认值）
+            for name, cfg in (template_metadata or {}).items():
+                default_val = cfg.get("default") if isinstance(cfg, dict) else None
+                if default_val is None and isinstance(cfg, dict):
+                    default_val = cfg.get("default_value")
+                variables[name] = VariableInfo(
+                    name=name,
+                    value=default_val,
+                    source=(cfg.get("source") if isinstance(cfg, dict) else "user_input"),
+                    variable_type=VariableType.TEMPLATE,
+                    metadata=cfg if isinstance(cfg, dict) else {},
+                    last_updated=None,
+                )
+        
+        # 从关联的任务中加载实际的参数值
+        if report.task_id:
+            task = self.db.query(GenerationTask).filter(GenerationTask.id == report.task_id).first()
+            if task and task.inputs_json:
+                logger.info(f"从任务 {task.id} 加载实际参数值: {task.inputs_json}")
+                # 用实际值覆盖变量的默认值
+                for param_name, param_value in task.inputs_json.items():
+                    if param_name in variables:
+                        # 更新已存在的变量值
+                        variables[param_name].value = param_value
+                        variables[param_name].last_updated = task.created_at
+                        logger.debug(f"更新变量 {param_name} 的值: {param_value}")
+                    else:
+                        # 添加新的用户输入变量
+                        variables[param_name] = VariableInfo(
+                            name=param_name,
+                            value=param_value,
+                            source="user_input",
+                            variable_type=VariableType.TEMPLATE,
+                            metadata={},
+                            last_updated=task.created_at,
+                        )
+                        logger.debug(f"添加新变量 {param_name}: {param_value}")
         
         return ReportState(
             report_id=report.id,
             version=1,
             template_id=report.template_id,
-            template_content=None,
-            template_metadata=None,
-            variables={},  # 将在后续实现中填充
+            template_content=template_content,
+            template_metadata=template_metadata,
+            variables=variables,
             markdown_content=report.markdown_content
         )
     
@@ -564,9 +610,11 @@ class MemoryManager:
         
         # 总结最近的修改
         recent_operations = []
-        for turn in memory.conversation_history[-5:]:  # 最近5轮
-            for op in turn.operations:
-                recent_operations.append(f"- {op.operation_type}: {turn.user_request[:50]}")
+        for turn in memory.conversation_history[-5:]:
+            ops = getattr(turn, "operations", [])
+            if isinstance(ops, list):
+                for op in ops:
+                    recent_operations.append(f"- {op.operation_type}: {turn.user_request[:50]}")
         
         if recent_operations:
             summary_parts.append("\n最近的修改:\n" + "\n".join(recent_operations))
@@ -576,7 +624,7 @@ class MemoryManager:
     def format_recent_context(
         self,
         memory: ConversationMemory,
-        max_turns: int = 3
+        limit: int = 3
     ) -> str:
         """
         格式化最近的对话上下文（用于意图解析）
@@ -595,7 +643,7 @@ class MemoryManager:
             context_parts.append(f"对话摘要:\n{memory.context_summary}\n")
         
         # 添加最近N轮对话
-        recent_turns = memory.conversation_history[-max_turns:] if memory.conversation_history else []
+        recent_turns = memory.conversation_history[-limit:] if memory.conversation_history else []
         
         if recent_turns:
             context_parts.append("最近的对话:")

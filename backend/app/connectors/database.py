@@ -104,6 +104,18 @@ class DatabaseConnector:
             )
             self._engines[name] = engine
         
+    def is_registered(self, name: str) -> bool:
+        """
+        检查连接是否已注册
+        
+        Args:
+            name: 连接名称
+        
+        Returns:
+            bool: True表示已注册，False表示未注册
+        """
+        return name in self._engines
+    
     def get_engine(self, name: str):
         """
         根据连接名称获取数据库引擎

@@ -16,6 +16,8 @@ from app.services.agent.strategies.base import ExecutionStrategy
 from app.services.agent.strategies.parameter_update import ParameterUpdateStrategy
 from app.services.agent.strategies.ai_refinement import AIRefinementStrategy
 from app.services.agent.strategies.template_modification import TemplateModificationStrategy
+from app.services.agent.strategies.query_strategy import QueryStrategy
+from app.services.agent.strategies.general_conversation_strategy import GeneralConversationStrategy
 from app.schemas.modification_schemas import (
     OperationStep,
     Operation,
@@ -54,10 +56,12 @@ class OperationExecutor:
         # 初始化策略字典
         self.strategies: Dict[OperationType, ExecutionStrategy] = {
             OperationType.UPDATE_PARAMETER: ParameterUpdateStrategy(db),
-            OperationType.REFINE_AI_CONTENT: AIRefinementStrategy(db),  # Phase 3
-            OperationType.ADD_SECTION: template_strategy,  # Phase 4
+            OperationType.REFINE_AI_CONTENT: AIRefinementStrategy(db),
+            OperationType.ADD_SECTION: template_strategy,
             OperationType.MODIFY_SECTION: template_strategy,
             OperationType.REMOVE_SECTION: template_strategy,
+            OperationType.QUERY: QueryStrategy(db),
+            OperationType.GENERAL_CONVERSATION: GeneralConversationStrategy(db),
         }
     
     async def execute(

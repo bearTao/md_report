@@ -14,6 +14,7 @@ import TaskLogs from './pages/logs/TaskLogs';
 import DebugTest from './pages/debug/DebugTest';
 import AISettings from './pages/settings/AISettings';
 import DBSettings from './pages/settings/DBSettings';
+import AgentSettings from './pages/settings/AgentSettings';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +44,7 @@ function App() {
               <Route path="debug" element={<DebugTest />} />
               <Route path="settings/ai" element={<AISettings />} />
               <Route path="settings/db" element={<DBSettings />} />
+              <Route path="settings/agent" element={<AgentSettings />} />
             </Route>
           </Routes>
         </BrowserRouter>

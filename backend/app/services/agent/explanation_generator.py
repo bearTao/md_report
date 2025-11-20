@@ -14,12 +14,15 @@ from langchain_openai import ChatOpenAI
 import logging
 import os
 
+from app.core.agent_config import get_llm_kwargs, get_config
 from app.schemas.modification_schemas import (
     Operation,
     ConversationMemory,
     ParameterUpdateDetails,
     AIRefinementDetails,
-    TemplateModificationDetails
+    TemplateModificationDetails,
+    QueryDetails,
+    GeneralConversationDetails
 )
 
 logger = logging.getLogger(__name__)
@@ -42,41 +45,64 @@ class ExplanationGenerator:
     
     def __init__(
         self,
-        use_llm: bool = False,
+        use_llm: Optional[bool] = None,
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
-        model: str = "gpt-3.5-turbo",
-        temperature: float = 0.7
+        model: Optional[str] = None,
+        temperature: Optional[float] = None
     ):
         """
         初始化响应说明生成器
         
         Args:
-            use_llm: 是否使用LLM生成（默认False,使用模板）
-            api_key: OpenAI API密钥（如果使用LLM）
-            api_base: OpenAI API基础URL（可选）
-            model: 模型名称（默认gpt-3.5-turbo,成本较低）
-            temperature: 生成温度（默认0.7,保持一定创造性）
+            use_llm: 是否使用LLM生成（如果不提供则从配置文件读取）
+            api_key: OpenAI API密钥（如果不提供则从配置文件或环境变量读取）
+            api_base: OpenAI API基础URL（如果不提供则从配置文件或环境变量读取）
+            model: 模型名称（如果不提供则从配置文件读取）
+            temperature: 生成温度（如果不提供则从配置文件读取）
         """
+        # 从配置获取参数
+        config = get_config()
+        
+        # 确定是否使用LLM
+        if use_llm is None:
+            use_llm = config.explanation_generator.use_llm
+        
         self.use_llm = use_llm
         self.llm = None
         
         if use_llm:
+            # 从配置获取LLM参数
+            llm_kwargs = get_llm_kwargs("explanation_generator")
+            
+            # 允许通过参数覆盖配置
+            if api_key:
+                llm_kwargs["api_key"] = api_key
+            if api_base:
+                llm_kwargs["base_url"] = api_base
+            if model:
+                llm_kwargs["model"] = model
+            if temperature is not None:
+                llm_kwargs["temperature"] = temperature
+            
             # 初始化LLM
-            api_key = api_key or os.getenv("OPENAI_API_KEY")
-            if not api_key:
+            if not llm_kwargs.get("api_key"):
                 logger.warning("LLM模式需要API密钥,回退到模板模式")
                 self.use_llm = False
             else:
-                llm_kwargs = {
-                    "model": model,
-                    "temperature": temperature,
-                    "api_key": api_key
-                }
-                if api_base:
-                    llm_kwargs["base_url"] = api_base
-                
-                self.llm = ChatOpenAI(**llm_kwargs)
+                try:
+                    self.llm = ChatOpenAI(**llm_kwargs)
+                    logger.info(
+                        f"ExplanationGenerator初始化完成(LLM模式) - "
+                        f"model: {llm_kwargs['model']}, "
+                        f"temperature: {llm_kwargs['temperature']}"
+                    )
+                except Exception as e:
+                    logger.error(f"LLM初始化失败: {e}, 回退到模板模式")
+                    self.use_llm = False
+        
+        if not self.use_llm:
+            logger.info("ExplanationGenerator初始化完成(模板模式)")
     
     async def generate(
         self,
@@ -184,8 +210,21 @@ class ExplanationGenerator:
         success_ops = [op for op in operations if op.success]
         failed_ops = [op for op in operations if not op.success]
         
+        # 检查是否只包含查询或对话操作
+        is_query_or_conversation = all(
+            op.operation_type in ["query", "general_conversation"]
+            for op in success_ops
+        )
+        
+        # 如果只有一个查询或对话操作，直接返回结果
+        if is_query_or_conversation and len(success_ops) == 1 and not failed_ops:
+            return self._describe_operation(success_ops[0], memory)
+        
         # 开场白
-        if success_ops:
+        if is_query_or_conversation:
+            # 查询或对话类操作不需要"修改"的措辞
+            pass
+        elif success_ops:
             parts.append("我已经完成了以下修改:")
         else:
             parts.append("很抱歉,修改执行遇到了问题:")
@@ -193,7 +232,10 @@ class ExplanationGenerator:
         # 描述成功的操作
         for idx, op in enumerate(success_ops, 1):
             op_desc = self._describe_operation(op, memory)
-            parts.append(f"{idx}. {op_desc}")
+            if is_query_or_conversation:
+                parts.append(op_desc)
+            else:
+                parts.append(f"{idx}. {op_desc}")
         
         # 描述失败的操作（如果有）
         if failed_ops:
@@ -202,14 +244,15 @@ class ExplanationGenerator:
                 error_msg = op.error_message or "未知错误"
                 parts.append(f"{idx}. {op.operation_type}: {error_msg}")
         
-        # 总结
-        if success_ops and not failed_ops:
-            parts.append(f"\n报告已更新到版本 {memory.current_version}。")
-        elif success_ops and failed_ops:
-            parts.append(
-                f"\n报告已部分更新到版本 {memory.current_version},"
-                f"但有{len(failed_ops)}个操作失败。"
-            )
+        # 总结（仅对修改类操作）
+        if not is_query_or_conversation:
+            if success_ops and not failed_ops:
+                parts.append(f"\n报告已更新到版本 {memory.current_version}。")
+            elif success_ops and failed_ops:
+                parts.append(
+                    f"\n报告已部分更新到版本 {memory.current_version},"
+                    f"但有{len(failed_ops)}个操作失败。"
+                )
         
         explanation = "\n".join(parts)
         logger.info(f"使用模板生成响应: {explanation[:50]}...")
@@ -266,6 +309,19 @@ class ExplanationGenerator:
                 return f"已修改章节: {details.section_name}"
             elif details.modification_type == "remove":
                 return f"已删除章节: {details.section_name}"
+        
+        elif isinstance(details, QueryDetails):
+            # 查询操作
+            query_result = details.query_result
+            if isinstance(query_result, str):
+                # 如果结果是字符串，直接返回
+                return query_result
+            else:
+                return f"查询完成: {details.query_type}"
+        
+        elif isinstance(details, GeneralConversationDetails):
+            # 通用对话操作
+            return details.system_response
         
         # 默认描述
         return f"已完成 {operation.operation_type} 操作"

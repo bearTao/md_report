@@ -379,3 +379,32 @@ export interface ExecutionLogListResponse {
   total: number;
 }
 
+// Agent配置相关类型
+export interface AgentLLMConfigItem {
+  component: string;
+  model: string;
+  api_key?: string | null;
+  api_base?: string | null;
+  organization?: string | null;
+  temperature: number;
+  max_tokens?: number | null;
+  timeout: number;
+  enabled: boolean;
+}
+
+export interface AgentConfigResponse {
+  configs: Record<string, AgentLLMConfigItem>;
+}
+
+export interface UpdateAgentConfigRequest {
+  component: string;
+  model: string;
+  api_key?: string | null;
+  api_base?: string | null;
+  organization?: string | null;
+  temperature: number;
+  max_tokens?: number | null;
+  timeout: number;
+  enabled: boolean;
+}
+

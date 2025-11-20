@@ -22,6 +22,46 @@ class ExecutionStrategy(ABC):
     
     策略模式允许我们为不同类型的操作提供不同的执行逻辑,
     同时保持统一的接口。
+    
+    ## 错误处理策略（统一规范）
+    
+    为了保持错误处理的一致性，所有ExecutionStrategy子类必须遵循以下规范：
+    
+    1. **execute方法不应该抛出异常**：
+       - execute方法应该捕获所有内部异常
+       - 失败时返回success=False的Operation对象，而不是抛出异常
+       - 这确保了操作链的稳定执行
+    
+    2. **内部辅助方法可以抛出异常**：
+       - execute方法内调用的私有方法可以抛出ValueError等异常
+       - 这些异常应该在execute的try-except块中被捕获
+       - 捕获后转换为失败的Operation对象
+    
+    3. **错误消息应该清晰**：
+       - error_message应该包含足够的上下文信息
+       - 使用logger.error记录详细的错误堆栈
+       - 返回给用户的消息应该友好且可操作
+    
+    4. **Fallback机制（可选）**：
+       - 某些策略可以实现fallback逻辑（如AI内容优化）
+       - Fallback失败后仍应返回失败的Operation对象
+       - 在details中记录fallback尝试的信息
+    
+    示例：
+        ```python
+        async def execute(self, step, memory) -> Operation:
+            start_time = datetime.now()
+            try:
+                # 执行核心逻辑（可能抛出异常）
+                result = await self._do_work(step, memory)
+                return self._create_operation_result(...)
+            except Exception as e:
+                logger.error(f"操作失败: {str(e)}")
+                # 返回失败结果，不抛出异常
+                return self._create_operation_result(
+                    ..., success=False, error_message=str(e)
+                )
+        ```
     """
     
     @abstractmethod
@@ -38,10 +78,11 @@ class ExecutionStrategy(ABC):
             memory: 对话记忆（包含当前状态）
         
         Returns:
-            Operation: 执行结果
+            Operation: 执行结果（成功或失败都返回Operation对象）
         
-        Raises:
-            Exception: 执行失败时抛出异常
+        Note:
+            此方法不应该抛出异常。所有异常都应该被捕获并转换为
+            success=False的Operation对象。参见类文档中的错误处理策略。
         """
         pass
     

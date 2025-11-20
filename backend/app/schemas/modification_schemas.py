@@ -24,11 +24,16 @@ class IntentType(str, Enum):
     
     定义了系统支持的所有修改意图类型。
     """
+    # 修改类意图
     UPDATE_PARAMETER = "update_parameter"  # 更新参数值
     REFINE_AI_CONTENT = "refine_ai_content"  # 优化AI生成的内容
     ADD_SECTION = "add_section"  # 添加新章节
     MODIFY_SECTION = "modify_section"  # 修改现有章节
     REMOVE_SECTION = "remove_section"  # 删除章节
+    
+    # 查询和通用类意图
+    QUERY = "query"  # 查询报告信息（如：输出当前报告内容、显示参数列表等）
+    GENERAL_CONVERSATION = "general_conversation"  # 通用对话（如：问候、咨询、建议等）
 
 
 class OperationType(str, Enum):
@@ -37,11 +42,16 @@ class OperationType(str, Enum):
     
     定义了系统执行的所有操作类型。
     """
+    # 修改类操作
     UPDATE_PARAMETER = "update_parameter"
     REFINE_AI_CONTENT = "refine_ai_content"
     ADD_SECTION = "add_section"
     MODIFY_SECTION = "modify_section"
     REMOVE_SECTION = "remove_section"
+    
+    # 查询和通用类操作
+    QUERY = "query"
+    GENERAL_CONVERSATION = "general_conversation"
 
 
 class VariableType(str, Enum):
@@ -71,6 +81,9 @@ class ModificationIntent(BaseModel):
         new_value: 新的值（用于参数更新）
         refinement_instruction: 优化指令（用于AI内容优化）
         section_description: 新章节描述（用于添加章节）
+        query_type: 查询类型（用于QUERY意图，如：show_content, list_variables, show_parameters等）
+        query_details: 查询详细信息（用于QUERY和GENERAL_CONVERSATION意图）
+        conversation_context: 对话上下文（用于GENERAL_CONVERSATION意图）
         confidence: 解析置信度（0-1）
     """
     intent_type: IntentType = Field(..., description="意图类型")
@@ -79,6 +92,9 @@ class ModificationIntent(BaseModel):
     new_value: Optional[Any] = Field(None, description="新的参数值")
     refinement_instruction: Optional[str] = Field(None, description="AI内容优化指令")
     section_description: Optional[str] = Field(None, description="新章节描述")
+    query_type: Optional[str] = Field(None, description="查询类型")
+    query_details: Optional[Dict[str, Any]] = Field(None, description="查询详细信息")
+    conversation_context: Optional[str] = Field(None, description="对话上下文")
     confidence: float = Field(1.0, ge=0.0, le=1.0, description="解析置信度")
     
     class Config:
@@ -143,6 +159,34 @@ class TemplateModificationDetails(BaseModel):
     new_variables: List[str] = Field(default_factory=list, description="新创建的变量")
 
 
+class QueryDetails(BaseModel):
+    """
+    查询操作详情
+    
+    Attributes:
+        query_type: 查询类型（show_content, list_variables, show_parameters等）
+        query_result: 查询结果
+        result_format: 结果格式（text, json, markdown等）
+    """
+    query_type: str = Field(..., description="查询类型")
+    query_result: Any = Field(..., description="查询结果")
+    result_format: str = Field(default="text", description="结果格式")
+
+
+class GeneralConversationDetails(BaseModel):
+    """
+    通用对话操作详情
+    
+    Attributes:
+        user_message: 用户消息
+        system_response: 系统响应
+        conversation_type: 对话类型（greeting, question, suggestion等）
+    """
+    user_message: str = Field(..., description="用户消息")
+    system_response: str = Field(..., description="系统响应")
+    conversation_type: str = Field(default="general", description="对话类型")
+
+
 class Operation(BaseModel):
     """
     操作模型
@@ -161,7 +205,9 @@ class Operation(BaseModel):
     details: Union[
         ParameterUpdateDetails, 
         AIRefinementDetails, 
-        TemplateModificationDetails
+        TemplateModificationDetails,
+        QueryDetails,
+        GeneralConversationDetails
     ] = Field(..., description="操作详情")
     success: bool = Field(True, description="执行是否成功")
     error_message: Optional[str] = Field(None, description="错误信息")
@@ -240,6 +286,11 @@ class ReportState(BaseModel):
         template_metadata: 模板元数据
         variables: 所有变量的状态信息
         markdown_content: 渲染后的Markdown内容
+        edit_mode: 编辑模式（template可修改参数 | locked静态锁定）
+        variable_snapshot: 变量快照（锁定时保存的历史值）
+        generated_at: 报告生成时间
+        locked_at: 锁定时间
+        lock_reason: 锁定原因
     """
     report_id: str = Field(..., description="报告ID")
     version: int = Field(1, description="版本号")
@@ -248,6 +299,33 @@ class ReportState(BaseModel):
     template_metadata: Optional[Dict[str, Any]] = Field(None, description="临时模板元数据")
     variables: Dict[str, VariableInfo] = Field(default_factory=dict, description="变量状态字典")
     markdown_content: str = Field("", description="Markdown内容")
+    
+    # 新增：编辑模式和锁定相关字段
+    edit_mode: str = Field(default="template", description="编辑模式: template | locked")
+    variable_snapshot: Optional[Dict[str, Any]] = Field(None, description="变量快照（锁定时）")
+    generated_at: datetime = Field(default_factory=datetime.now, description="报告生成时间")
+    locked_at: Optional[datetime] = Field(None, description="锁定时间")
+    lock_reason: Optional[str] = Field(None, description="锁定原因")
+    
+    def is_editable(self) -> bool:
+        """是否可以修改参数"""
+        return self.edit_mode == "template"
+    
+    def lock_for_content_edit(self, reason: str = "用户删除章节"):
+        """锁定报告为静态版本"""
+        from loguru import logger
+        
+        self.edit_mode = "locked"
+        self.locked_at = datetime.now()
+        self.lock_reason = reason
+        
+        # 保存变量快照
+        self.variable_snapshot = {
+            name: var.value 
+            for name, var in self.variables.items()
+        }
+        
+        logger.info(f"报告已锁定: {reason}, 生成时间: {self.generated_at}")
 
 
 # ============================================================================
@@ -448,6 +526,145 @@ class SaveAsTemplateResponse(BaseModel):
     success: bool = Field(..., description="是否成功")
     template_id: str = Field(..., description="新模板ID")
     message: str = Field(..., description="响应消息")
+
+
+# ============================================================================
+# 删除章节相关模型
+# ============================================================================
+
+class Section(BaseModel):
+    """
+    章节信息（后端解析生成）
+    
+    Attributes:
+        id: 唯一ID，如 L15
+        level: 标题级别 1-6
+        title: 标题文本
+        path: 完整路径，如 '报告->1、概述->1.1 评分'
+        start_line: 起始行号（0-indexed）
+        end_line: 结束行号（不包含）
+        parent_id: 父章节ID
+        subsections_count: 子章节数量
+    """
+    id: str = Field(..., description="唯一ID")
+    level: int = Field(..., description="标题级别 1-6")
+    title: str = Field(..., description="标题文本")
+    path: str = Field(..., description="完整路径")
+    start_line: int = Field(..., description="起始行号")
+    end_line: int = Field(..., description="结束行号")
+    parent_id: Optional[str] = Field(None, description="父章节ID")
+    subsections_count: int = Field(0, description="子章节数量")
+
+
+class SectionDeleteConfirmation(BaseModel):
+    """
+    章节删除确认信息（展示给用户）
+    
+    Attributes:
+        section_path: 章节完整路径
+        content_preview: 内容预览
+        section_id: 内部ID，用于精确删除
+        start_line: 起始行号
+        end_line: 结束行号
+    """
+    section_path: str = Field(..., description="章节完整路径")
+    content_preview: str = Field(..., description="内容预览（前200字）")
+    section_id: str = Field(..., description="内部ID")
+    start_line: int = Field(..., description="起始行号")
+    end_line: int = Field(..., description="结束行号")
+
+
+class BatchDeletePlan(BaseModel):
+    """
+    批量删除计划
+    
+    Attributes:
+        plan_id: 计划ID
+        conversation_id: 会话ID
+        sections: 待删除章节列表
+        total_count: 总章节数
+        will_lock_report: 是否会锁定报告
+        lock_warning: 锁定警告文本
+        alternatives: 替代方案列表
+    """
+    plan_id: str = Field(..., description="计划ID")
+    conversation_id: str = Field(..., description="会话ID")
+    sections: List[SectionDeleteConfirmation] = Field(..., description="待删除章节列表")
+    total_count: int = Field(..., description="总章节数")
+    will_lock_report: bool = Field(True, description="是否会锁定报告")
+    lock_warning: str = Field(..., description="锁定警告文本")
+    alternatives: List[Dict[str, str]] = Field(
+        default_factory=lambda: [
+            {
+                "action": "regenerate_without_sections",
+                "label": "重新生成（排除这些章节）",
+                "description": "使用最新数据重新生成报告，但排除指定章节"
+            }
+        ],
+        description="替代方案列表"
+    )
+
+
+class UserDecision(BaseModel):
+    """
+    用户对单个章节的决策
+    
+    Attributes:
+        section_id: 章节ID
+        decision: 决策 execute | skip | reject
+    """
+    section_id: str = Field(..., description="章节ID")
+    decision: str = Field(..., description="execute | skip | reject")
+
+
+class DeleteExecutionResult(BaseModel):
+    """
+    删除执行结果
+    
+    Attributes:
+        success: 是否成功
+        action_taken: 执行的操作
+        deleted_sections: 已删除章节列表
+        skipped_sections: 跳过的章节列表
+        report_state: 更新后的报告状态
+        message: 执行结果消息
+        available_operations: 可用操作列表
+        unavailable_operations: 不可用操作列表
+    """
+    success: bool = Field(..., description="是否成功")
+    action_taken: str = Field(..., description="delete_and_lock | regenerate_without")
+    deleted_sections: List[str] = Field(default_factory=list, description="已删除章节列表")
+    skipped_sections: List[str] = Field(default_factory=list, description="跳过的章节列表")
+    report_state: Dict[str, Any] = Field(..., description="更新后的报告状态")
+    message: str = Field(..., description="执行结果消息")
+    available_operations: List[str] = Field(default_factory=list, description="可用操作列表")
+    unavailable_operations: List[str] = Field(default_factory=list, description="不可用操作列表")
+
+
+class PlanDeleteRequest(BaseModel):
+    """
+    生成删除计划请求
+    
+    Attributes:
+        user_message: 用户删除请求
+        conversation_id: 会话ID
+    """
+    user_message: str = Field(..., description="用户删除请求")
+    conversation_id: str = Field(..., description="会话ID")
+
+
+class ExecuteDeleteRequest(BaseModel):
+    """
+    执行删除计划请求
+    
+    Attributes:
+        plan_id: 计划ID
+        action: delete_and_lock | regenerate_without
+        decisions: 用户对每个章节的决策
+    """
+    plan_id: str = Field(..., description="计划ID")
+    action: str = Field(..., description="delete_and_lock | regenerate_without")
+    decisions: List[UserDecision] = Field(..., description="用户对每个章节的决策")
 
 
 # ============================================================================

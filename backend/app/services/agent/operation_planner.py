@@ -6,7 +6,7 @@
 - 执行顺序规划
 - 参数验证
 """
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any, Set, Optional
 import logging
 
 from app.schemas.modification_schemas import (
@@ -83,6 +83,22 @@ class OperationPlanner:
                     intent, memory, step_number
                 )
                 steps.append(template_step)
+                step_number += 1
+            
+            elif intent.intent_type == "query":
+                # 查询类型
+                query_step = self._plan_query(
+                    intent, memory, step_number
+                )
+                steps.append(query_step)
+                step_number += 1
+            
+            elif intent.intent_type == "general_conversation":
+                # 通用对话类型
+                conversation_step = self._plan_general_conversation(
+                    intent, memory, step_number
+                )
+                steps.append(conversation_step)
                 step_number += 1
             
             else:
@@ -280,7 +296,7 @@ class OperationPlanner:
         """
         查找依赖于指定变量的其他变量
         
-        使用简单的依赖检测:检查变量元数据中的depends_on字段。
+        使用简单的依赖检测:检查变量元数据中的dependencies字段。
         
         Args:
             variable_name: 变量名
@@ -293,9 +309,9 @@ class OperationPlanner:
         
         # 遍历所有变量,检查依赖关系
         for var_name, var_info in memory.report_state.variables.items():
-            # 检查元数据中的depends_on字段
-            depends_on = var_info.metadata.get("depends_on", [])
-            if isinstance(depends_on, list) and variable_name in depends_on:
+            # 检查元数据中的dependencies字段
+            dependencies = var_info.metadata.get("dependencies", [])
+            if isinstance(dependencies, list) and variable_name in dependencies:
                 dependent_vars.append(var_name)
         
         # 执行拓扑排序,确保依赖顺序正确
@@ -335,13 +351,13 @@ class OperationPlanner:
             if not var_info:
                 return 0
             
-            depends_on = var_info.metadata.get("depends_on", [])
-            if not depends_on:
+            dependencies = var_info.metadata.get("dependencies", [])
+            if not dependencies:
                 return 0
             
             # 递归计算依赖的最大深度
             max_depth = 0
-            for dep in depends_on:
+            for dep in dependencies:
                 if isinstance(dep, str):
                     depth = get_depth(dep, visited.copy())
                     max_depth = max(max_depth, depth)
@@ -401,6 +417,68 @@ class OperationPlanner:
             return best_match
         
         return None
+    
+    def _plan_query(
+        self,
+        intent: ModificationIntent,
+        memory: ConversationMemory,
+        step_number: int
+    ) -> OperationStep:
+        """
+        规划查询操作
+        
+        Args:
+            intent: 查询意图
+            memory: 对话记忆
+            step_number: 步骤编号
+        
+        Returns:
+            OperationStep: 查询操作步骤
+        """
+        query_type = intent.query_type or "general_query"
+        query_details = intent.query_details or {}
+        
+        return OperationStep(
+            step_number=step_number,
+            operation_type=OperationType.QUERY,
+            description=f"执行查询: {query_type}",
+            target_variable=None,
+            parameters={
+                "query_type": query_type,
+                "query_details": query_details,
+                "report_id": memory.report_id
+            }
+        )
+    
+    def _plan_general_conversation(
+        self,
+        intent: ModificationIntent,
+        memory: ConversationMemory,
+        step_number: int
+    ) -> OperationStep:
+        """
+        规划通用对话操作
+        
+        Args:
+            intent: 通用对话意图
+            memory: 对话记忆
+            step_number: 步骤编号
+        
+        Returns:
+            OperationStep: 通用对话操作步骤
+        """
+        conversation_context = intent.conversation_context or "一般对话"
+        
+        return OperationStep(
+            step_number=step_number,
+            operation_type=OperationType.GENERAL_CONVERSATION,
+            description=f"处理对话: {conversation_context}",
+            target_variable=None,
+            parameters={
+                "conversation_context": conversation_context,
+                "query_details": intent.query_details or {}
+            }
+        )
 
 
 from typing import Optional

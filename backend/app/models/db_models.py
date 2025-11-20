@@ -257,3 +257,33 @@ class ReportModificationHistory(Base):
     cost_usd = Column(Numeric(10, 4), nullable=True)  # LLM调用成本（美元）
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
+
+class AgentComponentType(str, enum.Enum):
+    """Agent组件类型枚举"""
+    INTENT_PARSER = "intent_parser"
+    EXPLANATION_GENERATOR = "explanation_generator"
+    AI_REFINEMENT = "ai_refinement"
+
+
+class AgentLLMConfig(Base):
+    """
+    Agent LLM配置模型
+    
+    为每个Agent组件存储独立的LLM配置，包括模型、API密钥、base URL等。
+    每个组件可以使用不同的LLM提供商和配置。
+    """
+    __tablename__ = "agent_llm_configs"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    component = Column(String(50), nullable=False, unique=True)  # 组件类型：intent_parser, explanation_generator, ai_refinement
+    model = Column(String(100), nullable=False)  # 模型名称，如 gpt-4, gpt-3.5-turbo, claude-3
+    api_key = Column(Text, nullable=True)  # API密钥（可选，如果为空则使用全局配置）
+    api_base = Column(String(500), nullable=True)  # API Base URL（可选）
+    organization = Column(String(100), nullable=True)  # 组织ID（可选，用于OpenAI）
+    temperature = Column(Numeric(3, 2), nullable=False, default=0.7)  # 生成温度
+    max_tokens = Column(Integer, nullable=True)  # 最大生成token数
+    timeout = Column(Integer, nullable=False, default=60)  # 请求超时时间（秒）
+    enabled = Column(Boolean, default=True)  # 是否启用该组件
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+

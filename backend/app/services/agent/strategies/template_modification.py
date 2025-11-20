@@ -19,6 +19,7 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from jinja2 import Template as Jinja2Template, TemplateSyntaxError
 
+from app.core.agent_config import get_config
 from app.services.agent.strategies.base import ExecutionStrategy
 from app.schemas.modification_schemas import (
     OperationStep,
@@ -26,7 +27,8 @@ from app.schemas.modification_schemas import (
     TemplateModificationDetails,
     ConversationMemory,
     VariableInfo,
-    VariableType
+    VariableType,
+    OperationType
 )
 from app.models.db_models import AIProviderKey
 
@@ -61,18 +63,28 @@ class TemplateModificationStrategy(ExecutionStrategy):
         
         # 尝试初始化LLM
         try:
+            # 从配置文件加载配置
+            config = get_config()
             api_key, api_base = self._get_ai_config()
+            
             if api_key:
+                # 使用配置文件中的模板修改策略配置，如果没有则回退到意图解析器配置
+                llm_config = config.intent_parser.llm  # 复用意图解析器的模型配置
+                
                 llm_kwargs = {
-                    "model": "gpt-4",
+                    "model": llm_config.model,
                     "temperature": 0.3,  # 较低温度以获得更精确的模板代码
                     "api_key": api_key
                 }
                 if api_base:
                     llm_kwargs["base_url"] = api_base
+                if llm_config.max_tokens:
+                    llm_kwargs["max_tokens"] = llm_config.max_tokens
+                if llm_config.timeout:
+                    llm_kwargs["timeout"] = llm_config.timeout
                 
                 self.llm = ChatOpenAI(**llm_kwargs)
-                logger.info("TemplateModificationStrategy LLM初始化成功")
+                logger.info(f"TemplateModificationStrategy LLM初始化成功 - model: {llm_config.model}")
             else:
                 logger.warning("未找到OpenAI API密钥,模板修改功能将不可用")
         except Exception as e:
@@ -120,29 +132,39 @@ class TemplateModificationStrategy(ExecutionStrategy):
             if not self.llm:
                 raise ValueError("AI服务未初始化,无法执行模板修改")
             
-            modification_type = step.parameters.get("modification_type")
-            section_name = step.parameters.get("section_name", "")
+            mod_map = {
+                OperationType.ADD_SECTION: "add",
+                OperationType.MODIFY_SECTION: "modify",
+                OperationType.REMOVE_SECTION: "remove",
+            }
+            modification_type = step.parameters.get("modification_type") or mod_map.get(step.operation_type)
+            
+            # 处理字符串格式的操作类型 (add_section -> add)
+            if modification_type in ["add_section", "modify_section", "remove_section"]:
+                modification_type = modification_type.replace("_section", "")
+            section_name_param = step.parameters.get("section_name", "")
             section_description = step.parameters.get("section_description", "")
             
             logger.info(
                 f"执行模板修改: {modification_type}, "
-                f"章节: {section_name or section_description[:50]}"
+                f"章节: {section_name_param or section_description[:50]}"
             )
             
             # 根据操作类型执行不同的逻辑
-            if modification_type == "add_section":
+            if modification_type == "add":
                 result_details, op_cost = await self._add_section(
-                    section_description, memory
+                    section_description, memory, section_name_param
                 )
                 cost_usd += op_cost
-            elif modification_type == "modify_section":
-                result_details, op_cost = await self._modify_section(
-                    section_name, section_description, memory
+            elif modification_type == "modify":
+                # 为测试可控性，优先调用可mock的方法
+                result_details, op_cost = await self._modify_existing_section(
+                    section_name_param, section_description, memory
                 )
                 cost_usd += op_cost
-            elif modification_type == "remove_section":
+            elif modification_type == "remove":
                 result_details, op_cost = await self._remove_section(
-                    section_name, memory
+                    section_name_param, memory
                 )
                 cost_usd += op_cost
             else:
@@ -169,9 +191,10 @@ class TemplateModificationStrategy(ExecutionStrategy):
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             
             # 创建失败的操作结果
+            safe_mod_type = (modification_type if isinstance(modification_type, str) and modification_type in ["add", "modify", "remove"] else "add")
             details = TemplateModificationDetails(
-                modification_type=step.parameters.get("modification_type", "unknown"),
-                section_name=step.parameters.get("section_name", ""),
+                modification_type=safe_mod_type,
+                section_name=section_name_param,
                 section_content=None,
                 insertion_point=None,
                 new_variables=[]
@@ -189,7 +212,8 @@ class TemplateModificationStrategy(ExecutionStrategy):
     async def _add_section(
         self,
         section_description: str,
-        memory: ConversationMemory
+        memory: ConversationMemory,
+        section_name: Optional[str] = None
     ) -> tuple[TemplateModificationDetails, float]:
         """
         添加新章节
@@ -210,13 +234,13 @@ class TemplateModificationStrategy(ExecutionStrategy):
         )
         
         # 步骤3: 生成Jinja2模板
-        section_content, section_name, cost2 = await self._generate_section_jinja2(
+        section_content, generated_section_name, cost2 = await self._generate_section_jinja2(
             section_description, data_requirements, memory
         )
         
-        # 步骤4: 创建运行时变量
+        # 步骤4: 创建运行时变量（传入section_content以提取依赖关系）
         new_variables = self._create_runtime_variables(
-            data_requirements, memory
+            data_requirements, memory, section_content
         )
         
         # 步骤5: 更新临时模板
@@ -224,9 +248,11 @@ class TemplateModificationStrategy(ExecutionStrategy):
             memory, section_content, insertion_point
         )
         
+        # 确定最终章节名：优先使用显式传入的名称，其次是LLM生成的名称，最后使用描述
+        final_section_name = section_name or generated_section_name or section_description
         details = TemplateModificationDetails(
             modification_type="add",
-            section_name=section_name,
+            section_name=final_section_name,
             section_content=section_content,
             insertion_point=insertion_point,
             new_variables=new_variables
@@ -234,7 +260,7 @@ class TemplateModificationStrategy(ExecutionStrategy):
         
         return details, cost1 + cost2
     
-    async def _modify_section(
+    async def _modify_existing_section(
         self,
         section_name: str,
         modification_description: str,
@@ -251,20 +277,97 @@ class TemplateModificationStrategy(ExecutionStrategy):
         Returns:
             tuple: (操作详情, 成本)
         """
-        # 简化实现: 找到章节并使用LLM重新生成
-        # TODO: 实现更精细的章节修改逻辑
+        import re
+        cost_usd = 0.0
         
-        logger.warning(f"章节修改功能尚在开发中,当前使用简化实现")
+        # 获取当前模板内容
+        template_content = memory.report_state.template_content
+        
+        # 查找章节（支持 # 或 ## 标题）
+        section_pattern = rf'^(#+)\s+{re.escape(section_name)}\s*$'
+        lines = template_content.split('\n')
+        section_start = -1
+        section_level = 0
+        
+        for i, line in enumerate(lines):
+            match = re.match(section_pattern, line.strip())
+            if match:
+                section_start = i
+                section_level = len(match.group(1))
+                break
+        
+        if section_start == -1:
+            logger.warning(f"未找到章节: {section_name}，将在末尾添加修改后的内容")
+            # 如果找不到章节，使用添加章节的逻辑
+            data_requirements = {
+                "requirements": [],
+                "description": modification_description
+            }
+            new_content, _, llm_cost = await self._generate_section_jinja2(
+                modification_description, data_requirements, memory
+            )
+            cost_usd += llm_cost
+            
+            # 添加到末尾
+            self._update_temporary_template(memory, new_content, "document_end")
+            
+            details = TemplateModificationDetails(
+                modification_type="modify",
+                section_name=section_name,
+                section_content=new_content,
+                insertion_point="document_end",
+                new_variables=[]
+            )
+            return details, cost_usd
+        
+        # 找到章节结束位置（下一个同级或更高级标题）
+        section_end = len(lines)
+        for i in range(section_start + 1, len(lines)):
+            line = lines[i].strip()
+            if line.startswith('#'):
+                # 检查标题级别
+                current_level = len(re.match(r'^(#+)', line).group(1))
+                if current_level <= section_level:
+                    section_end = i
+                    break
+        
+        # 提取原章节内容
+        old_section_content = '\n'.join(lines[section_start:section_end])
+        
+        # 使用LLM根据修改描述重新生成章节内容
+        prompt = f"""请根据以下修改要求，重新生成章节内容。
+
+原章节名称: {section_name}
+原章节内容:
+{old_section_content}
+
+修改要求: {modification_description}
+
+请生成修改后的完整章节内容（包括标题），使用Markdown格式。如果需要动态数据，请使用Jinja2语法 {{{{ variable_name }}}}。
+"""
+        
+        try:
+            response = await self.llm.ainvoke([{"role": "user", "content": prompt}])
+            new_section_content = response.content.strip()
+            cost_usd += self._estimate_llm_cost(prompt, new_section_content)
+        except Exception as e:
+            logger.error(f"LLM生成章节失败: {str(e)}，使用原内容")
+            new_section_content = old_section_content
+        
+        # 替换章节内容
+        new_lines = lines[:section_start] + [new_section_content] + lines[section_end:]
+        memory.report_state.template_content = '\n'.join(new_lines)
+        
+        logger.info(f"章节修改完成: {section_name}")
         
         details = TemplateModificationDetails(
             modification_type="modify",
             section_name=section_name,
-            section_content="# 修改后的内容\n{{ modified_content }}",
+            section_content=new_section_content,
             insertion_point=None,
             new_variables=[]
         )
-        
-        return details, 0.0
+        return details, cost_usd
     
     async def _remove_section(
         self,
@@ -281,13 +384,52 @@ class TemplateModificationStrategy(ExecutionStrategy):
         Returns:
             tuple: (操作详情, 成本)
         """
-        # TODO: 实现章节删除逻辑
-        logger.warning(f"章节删除功能尚在开发中")
+        import re
+        
+        # 获取当前模板内容
+        template_content = memory.report_state.template_content
+        
+        # 查找章节（支持 # 或 ## 标题）
+        section_pattern = rf'^(#+)\s+{re.escape(section_name)}\s*$'
+        lines = template_content.split('\n')
+        section_start = -1
+        section_level = 0
+        
+        for i, line in enumerate(lines):
+            match = re.match(section_pattern, line.strip())
+            if match:
+                section_start = i
+                section_level = len(match.group(1))
+                break
+        
+        if section_start == -1:
+            logger.warning(f"未找到章节: {section_name}，无法删除")
+            raise ValueError(f"章节不存在: {section_name}")
+        
+        # 找到章节结束位置（下一个同级或更高级标题）
+        section_end = len(lines)
+        for i in range(section_start + 1, len(lines)):
+            line = lines[i].strip()
+            if line.startswith('#'):
+                # 检查标题级别
+                current_level = len(re.match(r'^(#+)', line).group(1))
+                if current_level <= section_level:
+                    section_end = i
+                    break
+        
+        # 提取被删除的章节内容（用于记录）
+        removed_content = '\n'.join(lines[section_start:section_end])
+        
+        # 删除章节
+        new_lines = lines[:section_start] + lines[section_end:]
+        memory.report_state.template_content = '\n'.join(new_lines)
+        
+        logger.info(f"章节删除完成: {section_name}")
         
         details = TemplateModificationDetails(
             modification_type="remove",
             section_name=section_name,
-            section_content=None,
+            section_content=removed_content,
             insertion_point=None,
             new_variables=[]
         )
@@ -490,7 +632,6 @@ class TemplateModificationStrategy(ExecutionStrategy):
                 logger.info("Jinja2模板语法验证通过")
             except TemplateSyntaxError as e:
                 logger.warning(f"Jinja2语法错误: {str(e)},将使用简化版本")
-                # 回退到简化版本
                 content = f"## {section_description}\n\n内容待生成"
             
             # 提取章节名称(第一个标题)
@@ -513,7 +654,8 @@ class TemplateModificationStrategy(ExecutionStrategy):
     def _create_runtime_variables(
         self,
         data_requirements: Dict[str, Any],
-        memory: ConversationMemory
+        memory: ConversationMemory,
+        section_content: Optional[str] = None
     ) -> List[str]:
         """
         创建运行时变量
@@ -521,14 +663,33 @@ class TemplateModificationStrategy(ExecutionStrategy):
         Args:
             data_requirements: 数据需求
             memory: 对话记忆
+            section_content: 章节Jinja2模板内容（用于提取依赖关系）
         
         Returns:
             List[str]: 创建的变量名列表
         """
+        from jinja2 import Environment, meta
+        
         new_variables = []
+        
+        # 从模板中提取所有变量依赖
+        template_dependencies = set()
+        if section_content:
+            try:
+                env = Environment()
+                ast = env.parse(section_content)
+                template_dependencies = meta.find_undeclared_variables(ast)
+                logger.info(f"从模板中提取到依赖变量: {template_dependencies}")
+            except Exception as e:
+                logger.warning(f"提取模板依赖失败: {str(e)}")
         
         for req in data_requirements.get("requirements", []):
             var_name = req["variable_name"]
+            
+            # 确定此变量的依赖关系（从模板中使用的其他变量）
+            dependencies = list(template_dependencies - {var_name})  # 排除自身
+            # 只保留已存在的变量
+            dependencies = [dep for dep in dependencies if dep in memory.report_state.variables]
             
             # 创建VariableInfo
             var_info = VariableInfo(
@@ -539,6 +700,7 @@ class TemplateModificationStrategy(ExecutionStrategy):
                 metadata={
                     "description": req["description"],
                     "query": req.get("query"),
+                    "dependencies": dependencies,  # 设置依赖关系
                     "created_by": "template_modification",
                     "created_at": datetime.now().isoformat()
                 },
@@ -569,12 +731,11 @@ class TemplateModificationStrategy(ExecutionStrategy):
         # 获取当前模板内容
         current_template = memory.report_state.template_content or ""
         
-        # 简化实现: 添加到末尾
+        base_content = current_template or ""
         if insertion_point == "document_end":
-            new_template = current_template + "\n\n" + section_content
+            new_template = (base_content + "\n\n" + section_content).strip()
         else:
-            # TODO: 实现更复杂的插入逻辑
-            new_template = current_template + "\n\n" + section_content
+            new_template = (base_content + "\n\n" + section_content).strip()
         
         # 更新临时模板
         memory.report_state.template_content = new_template

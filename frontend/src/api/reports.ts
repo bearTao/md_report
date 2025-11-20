@@ -137,3 +137,44 @@ export const updateReportTitle = async (
   return response.data;
 };
 
+// 获取对话历史
+export const getConversationHistory = async (
+  reportId: string,
+  sessionId?: string
+): Promise<{
+  session_id: string;
+  report_id: string;
+  turns: Array<{
+    turn_number: number;
+    user_request: string;
+    system_response: string;
+    timestamp: string;
+    operations: any[];
+  }>;
+  context_summary: any;
+  current_version: number;
+}> => {
+  const params = sessionId ? { session_id: sessionId } : {};
+  const response = await client.get(`/api/reports/${reportId}/conversation`, { params });
+  return response.data;
+};
+
+// 获取会话列表
+export const getConversationSessions = async (
+  reportId: string
+): Promise<{
+  sessions: Array<{
+    session_id: string;
+    report_id: string;
+    created_at: string;
+    last_activity_at: string;
+    turn_count: number;
+    preview: string;
+    status: string;
+  }>;
+  total: number;
+}> => {
+  const response = await client.get(`/api/reports/${reportId}/sessions`);
+  return response.data;
+};
+

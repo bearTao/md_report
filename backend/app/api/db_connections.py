@@ -31,7 +31,7 @@ async def list_db_connections(
             host=conn.host,
             port=conn.port,
             database=conn.database,
-            is_active=conn.is_active == "true",
+            is_active=bool(conn.is_active),
             created_at=conn.created_at
         )
         for conn in connections
@@ -65,7 +65,7 @@ async def create_db_connection(
         username=request.username,
         password_ciphertext=request.password,  # TODO: Encrypt password
         options_json=request.options,
-        is_active="true" if request.is_active else "false"
+        is_active=True if request.is_active else False
     )
     
     db.add(connection)
@@ -81,7 +81,7 @@ async def create_db_connection(
         database=connection.database,
         username=connection.username,
         options=connection.options_json,
-        is_active=connection.is_active == "true",
+        is_active=bool(connection.is_active),
         created_at=connection.created_at,
         updated_at=connection.updated_at
     )
@@ -107,7 +107,7 @@ async def get_db_connection(
         database=connection.database,
         username=connection.username,
         options=connection.options_json,
-        is_active=connection.is_active == "true",
+        is_active=bool(connection.is_active),
         created_at=connection.created_at,
         updated_at=connection.updated_at
     )
@@ -149,7 +149,7 @@ async def update_db_connection(
     if request.options is not None:
         connection.options_json = request.options
     if request.is_active is not None:
-        connection.is_active = "true" if request.is_active else "false"
+        connection.is_active = True if request.is_active else False
     
     connection.updated_at = datetime.now(timezone.utc)
     db.commit()

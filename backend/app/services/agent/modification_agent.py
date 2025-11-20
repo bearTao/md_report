@@ -16,6 +16,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 import logging
 
+from app.core.agent_config import get_config
 from app.services.agent.memory_manager import MemoryManager
 from app.services.agent.intent_parser import IntentParser
 from app.services.agent.operation_planner import OperationPlanner
@@ -27,7 +28,7 @@ from app.services.agent.utils import (
     measure_time
 )
 from app.services.renderer import TemplateRenderer
-from app.services.websocket_manager import ConnectionManager
+from app.services.websocket_manager import WebSocketManager
 from app.schemas.modification_schemas import (
     ModificationResult,
     ModificationMetadata,
@@ -58,7 +59,7 @@ class ReportModificationAgent:
     def __init__(
         self,
         db: Session,
-        websocket_manager: Optional[ConnectionManager] = None
+        websocket_manager: Optional[WebSocketManager] = None
     ):
         """
         初始化报告修改代理
@@ -72,17 +73,14 @@ class ReportModificationAgent:
         self.template_renderer = TemplateRenderer()
         self.websocket_manager = websocket_manager
         
-        # 获取AI配置
-        api_key, api_base = self._get_ai_config()
+        # 加载配置
+        config = get_config()
+        logger.info(f"Agent配置已加载 - 日志级别: {config.log_level}")
         
         # 初始化子组件(Phase 2)
+        # 所有配置现在从配置文件中读取
         try:
-            self.intent_parser = IntentParser(
-                api_key=api_key,
-                api_base=api_base,
-                model="gpt-4",
-                temperature=0.1
-            )
+            self.intent_parser = IntentParser()
             logger.info("IntentParser初始化成功")
         except Exception as e:
             logger.warning(f"IntentParser初始化失败: {str(e)}")
@@ -90,35 +88,7 @@ class ReportModificationAgent:
         
         self.operation_planner = OperationPlanner()
         self.operation_executor = OperationExecutor(db)
-        self.explanation_generator = ExplanationGenerator(
-            use_llm=False  # 默认使用模板模式,成本更低
-        )
-    
-    def _get_ai_config(self) -> tuple[Optional[str], Optional[str]]:
-        """
-        获取OpenAI API配置
-        
-        Returns:
-            tuple: (api_key, api_base)
-        """
-        # 先尝试环境变量
-        api_key = os.getenv("OPENAI_API_KEY")
-        api_base = os.getenv("OPENAI_API_BASE")
-        if api_key:
-            return api_key, api_base
-        
-        # 尝试从数据库获取
-        try:
-            config = self.db.query(AIProviderKey).filter(
-                AIProviderKey.provider == "openai"
-            ).first()
-            
-            if config:
-                return config.api_key_ciphertext, config.api_base
-        except Exception as e:
-            logger.warning(f"从数据库获取AI配置失败: {str(e)}")
-        
-        return None, None
+        self.explanation_generator = ExplanationGenerator()
     
     async def modify_report(
         self,
@@ -363,12 +333,17 @@ class ReportModificationAgent:
         Returns:
             str: 渲染后的Markdown内容
         
-        Note:
-            此方法在Phase 2实现完整逻辑,当前返回当前内容。
         """
-        # TODO: Phase 2 - 集成TemplateRenderer
-        logger.warning("TemplateRenderer集成未完成,返回当前内容")
-        return memory.report_state.markdown_content
+        template = memory.report_state.template_content
+        variables = {name: var.value for name, var in memory.report_state.variables.items()}
+        if not template:
+            return memory.report_state.markdown_content
+        try:
+            content = self.template_renderer.render(template, variables)
+            return content
+        except Exception as e:
+            logger.warning(f"模板渲染失败,回退到现有内容: {str(e)}")
+            return memory.report_state.markdown_content
     
     async def _generate_explanation(
         self,
@@ -413,13 +388,11 @@ class ReportModificationAgent:
         """
         if self.websocket_manager:
             try:
-                await self.websocket_manager.send_message(
+                from app.services.websocket_manager import WSEventType
+                await self.websocket_manager.send_event(
                     task_id=report_id,
-                    message={
-                        "type": "modification_progress",
-                        "message": message,
-                        "timestamp": datetime.now().isoformat()
-                    }
+                    event_type=WSEventType.VARIABLE_PROGRESS,
+                    data={"message": message}
                 )
             except Exception as e:
                 logger.warning(f"发送进度更新失败: {str(e)}")
@@ -441,6 +414,16 @@ class ReportModificationAgent:
         Returns:
             ModificationResult: 错误结果对象
         """
+        # 安全获取当前版本号
+        current_version = 0
+        try:
+            # 避免在session_id为"unknown"时创建新memory
+            safe_session_id = None if session_id == "unknown" else session_id
+            memory = self.memory_manager.get_or_create_memory(report_id, safe_session_id)
+            current_version = memory.current_version
+        except Exception as e:
+            logger.warning(f"获取版本号失败: {str(e)}, 使用默认值0")
+        
         return ModificationResult(
             success=False,
             report_id=report_id,
@@ -453,8 +436,8 @@ class ReportModificationAgent:
                 total_cost_usd=0.0,
                 operations_count=0,
                 llm_calls_count=0,
-                from_version=0,
-                to_version=0
+                from_version=current_version,
+                to_version=current_version
             ),
             error_message=error_message
         )
@@ -478,4 +461,332 @@ class ReportModificationAgent:
         """
         llm_tracker.reset()
         logger.info("性能统计已重置")
+    
+    # ========== 删除章节功能 ==========
+    
+    async def plan_delete_sections(
+        self,
+        user_message: str,
+        conversation_id: str
+    ) -> "BatchDeletePlan":
+        """
+        生成删除计划（不执行）
+        
+        流程：
+        1. 后端精确解析 Markdown 结构
+        2. LLM 识别要删除的章节路径
+        3. 后端验证和定位
+        4. 生成确认信息
+        
+        Args:
+            user_message: 用户删除请求
+            conversation_id: 会话ID
+        
+        Returns:
+            BatchDeletePlan: 删除计划
+        
+        Raises:
+            ValueError: 无法定位任何章节
+        """
+        import json
+        import uuid
+        from app.services.agent.section_locator import SectionLocator
+        from app.services.agent.delete_section_prompts import (
+            SECTION_DELETE_SYSTEM_PROMPT,
+            format_delete_prompt
+        )
+        from app.schemas.modification_schemas import (
+            BatchDeletePlan,
+            SectionDeleteConfirmation
+        )
+        
+        logger.info(f"开始生成删除计划: {user_message}")
+        
+        # 1. 获取记忆
+        memory = self.memory_manager.get_or_create_memory(
+            conversation_id=conversation_id,
+            session_id=conversation_id
+        )
+        
+        # 2. 后端精确解析结构
+        locator = SectionLocator()
+        all_sections = locator.parse_markdown_structure(
+            memory.report_state.markdown_content
+        )
+        
+        logger.info(f"解析到 {len(all_sections)} 个章节")
+        
+        if not all_sections:
+            raise ValueError("报告中没有章节可以删除")
+        
+        # 3. 构建章节结构（给LLM看）
+        section_structure = locator.build_section_structure_for_llm(
+            memory.report_state.markdown_content
+        )
+        
+        # 4. LLM 识别删除目标（只返回路径）
+        user_prompt = format_delete_prompt(
+            section_structure=section_structure,
+            report_content=memory.report_state.markdown_content,
+            user_request=user_message
+        )
+        
+        messages = [
+            {"role": "system", "content": SECTION_DELETE_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        response = await self.intent_parser.llm.ainvoke(messages)
+        
+        # 5. 解析 LLM 输出
+        try:
+            llm_result = json.loads(response.content)
+            
+            if "sections_to_delete" not in llm_result:
+                raise ValueError("LLM 输出缺少 sections_to_delete 字段")
+            
+            if not isinstance(llm_result["sections_to_delete"], list):
+                raise ValueError("sections_to_delete 必须是列表")
+            
+            logger.info(f"LLM 识别到 {len(llm_result['sections_to_delete'])} 个删除目标")
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"LLM 输出不是有效的 JSON: {response.content}")
+            raise ValueError(f"LLM 输出格式错误: {str(e)}")
+        
+        # 6. 后端精确定位和验证
+        confirmations = []
+        failed_paths = []
+        
+        for path in llm_result['sections_to_delete']:
+            try:
+                # 后端定位
+                section = locator.locate_section_by_path(all_sections, path)
+                
+                # 生成确认信息
+                confirmation = SectionDeleteConfirmation(
+                    section_path=section.path,
+                    content_preview=locator.extract_content_preview(
+                        memory.report_state.markdown_content,
+                        section.start_line,
+                        section.end_line,
+                        max_chars=200
+                    ),
+                    section_id=section.id,
+                    start_line=section.start_line,
+                    end_line=section.end_line
+                )
+                
+                confirmations.append(confirmation)
+                
+            except ValueError as e:
+                logger.error(f"无法定位章节: {path}, 错误: {e}")
+                failed_paths.append(path)
+                continue
+        
+        # 7. 验证：至少要有一个可定位的章节
+        if not confirmations:
+            raise ValueError(
+                f"无法定位任何章节。"
+                f"LLM 识别了 {len(llm_result['sections_to_delete'])} 个路径，"
+                f"但后端都无法精确定位。失败的路径: {failed_paths}"
+            )
+        
+        if failed_paths:
+            logger.warning(f"以下路径无法定位，已跳过: {failed_paths}")
+        
+        # 8. 生成计划
+        plan_id = f"plan_{uuid.uuid4().hex[:8]}"
+        
+        plan = BatchDeletePlan(
+            plan_id=plan_id,
+            conversation_id=conversation_id,
+            sections=confirmations,
+            total_count=len(confirmations),
+            will_lock_report=True,
+            lock_warning=(
+                f"删除章节后，报告将锁定为静态版本"
+                f"（保留数据时间：{memory.report_state.generated_at.strftime('%Y-%m-%d %H:%M')}），"
+                f"无法再修改参数。"
+            )
+        )
+        
+        # 9. 临时保存计划（缓存到内存中）
+        self._save_delete_plan(plan_id, plan)
+        
+        logger.info(f"删除计划生成完成: {plan_id}, 共 {len(confirmations)} 个章节")
+        
+        return plan
+    
+    async def execute_delete_plan(
+        self,
+        plan_id: str,
+        action: str,
+        decisions: list
+    ) -> "DeleteExecutionResult":
+        """
+        执行删除计划
+        
+        Args:
+            plan_id: 计划ID
+            action: "delete_and_lock" | "regenerate_without"
+            decisions: 用户决策列表
+        
+        Returns:
+            DeleteExecutionResult: 执行结果
+        
+        Raises:
+            ValueError: 计划不存在或操作类型未知
+        """
+        from app.schemas.modification_schemas import DeleteExecutionResult, UserDecision
+        
+        logger.info(f"开始执行删除计划: {plan_id}, 操作: {action}")
+        
+        # 1. 加载计划
+        plan = self._load_delete_plan(plan_id)
+        
+        if action == "delete_and_lock":
+            return await self._delete_and_lock(plan, decisions)
+        elif action == "regenerate_without":
+            # TODO: 实现重新生成功能
+            raise NotImplementedError("重新生成功能暂未实现")
+        else:
+            raise ValueError(f"未知操作: {action}")
+    
+    async def _delete_and_lock(
+        self,
+        plan: "BatchDeletePlan",
+        decisions: list
+    ) -> "DeleteExecutionResult":
+        """
+        删除章节并锁定报告
+        
+        Args:
+            plan: 删除计划
+            decisions: 用户决策列表
+        
+        Returns:
+            DeleteExecutionResult: 执行结果
+        """
+        from app.schemas.modification_schemas import DeleteExecutionResult
+        
+        # 1. 获取记忆
+        memory = self.memory_manager.get_or_create_memory(
+            conversation_id=plan.conversation_id,
+            session_id=plan.conversation_id
+        )
+        
+        # 2. 筛选要删除的章节
+        sections_to_delete = []
+        skipped_sections = []
+        
+        for decision in decisions:
+            decision_obj = decision if isinstance(decision, dict) else decision.dict()
+            
+            if decision_obj["decision"] == "execute":
+                section = next(
+                    (s for s in plan.sections if s.section_id == decision_obj["section_id"]),
+                    None
+                )
+                if section:
+                    sections_to_delete.append(section)
+            elif decision_obj["decision"] == "skip":
+                section = next(
+                    (s for s in plan.sections if s.section_id == decision_obj["section_id"]),
+                    None
+                )
+                if section:
+                    skipped_sections.append(section.section_path)
+        
+        if not sections_to_delete:
+            return DeleteExecutionResult(
+                success=True,
+                action_taken="none",
+                deleted_sections=[],
+                skipped_sections=skipped_sections,
+                report_state=self._get_report_state_dict(memory.report_state),
+                message="未删除任何章节"
+            )
+        
+        # 3. 锁定报告
+        memory.report_state.lock_for_content_edit("用户删除章节")
+        
+        # 4. 按行号倒序删除（避免行号偏移）
+        markdown_lines = memory.report_state.markdown_content.split('\n')
+        
+        sections_sorted = sorted(
+            sections_to_delete,
+            key=lambda s: s.start_line,
+            reverse=True
+        )
+        
+        deleted_paths = []
+        for section in sections_sorted:
+            # 删除行范围
+            del markdown_lines[section.start_line:section.end_line]
+            deleted_paths.append(section.section_path)
+            
+            logger.info(
+                f"已删除章节: {section.section_path} "
+                f"(行 {section.start_line}-{section.end_line})"
+            )
+        
+        # 5. 更新内容
+        memory.report_state.markdown_content = '\n'.join(markdown_lines)
+        memory.current_version += 1
+        memory.report_state.version = memory.current_version
+        
+        # 6. 保存状态
+        self.memory_manager.save_memory(memory)
+        
+        # 7. 清理临时计划
+        self._delete_delete_plan(plan.plan_id)
+        
+        logger.info(f"删除执行完成: 已删除 {len(deleted_paths)} 个章节")
+        
+        # 8. 返回结果
+        return DeleteExecutionResult(
+            success=True,
+            action_taken="delete_and_lock",
+            deleted_sections=deleted_paths,
+            skipped_sections=skipped_sections,
+            report_state=self._get_report_state_dict(memory.report_state),
+            message=(
+                f"已删除 {len(deleted_paths)} 个章节。"
+                f"报告已锁定为静态版本（数据时间：{memory.report_state.generated_at.strftime('%Y-%m-%d %H:%M')}），"
+                f"无法再修改参数。"
+            ),
+            available_operations=["delete_section", "modify_text"],
+            unavailable_operations=["update_parameter", "add_section"]
+        )
+    
+    def _get_report_state_dict(self, state: "ReportState") -> Dict[str, Any]:
+        """获取报告状态字典"""
+        return {
+            "edit_mode": state.edit_mode,
+            "generated_at": state.generated_at.isoformat(),
+            "locked_at": state.locked_at.isoformat() if state.locked_at else None,
+            "lock_reason": state.lock_reason,
+            "version": state.version
+        }
+    
+    # 临时计划缓存（生产环境应使用 Redis）
+    _delete_plans_cache: Dict[str, "BatchDeletePlan"] = {}
+    
+    def _save_delete_plan(self, plan_id: str, plan: "BatchDeletePlan"):
+        """保存删除计划到缓存"""
+        self._delete_plans_cache[plan_id] = plan
+        logger.debug(f"删除计划已缓存: {plan_id}")
+    
+    def _load_delete_plan(self, plan_id: str) -> "BatchDeletePlan":
+        """从缓存加载删除计划"""
+        if plan_id not in self._delete_plans_cache:
+            raise ValueError(f"删除计划不存在: {plan_id}")
+        return self._delete_plans_cache[plan_id]
+    
+    def _delete_delete_plan(self, plan_id: str):
+        """删除缓存的删除计划"""
+        if plan_id in self._delete_plans_cache:
+            del self._delete_plans_cache[plan_id]
+            logger.debug(f"删除计划已清理: {plan_id}")
 

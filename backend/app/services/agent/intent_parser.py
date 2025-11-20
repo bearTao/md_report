@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 import logging
 import os
 
+from app.core.agent_config import get_llm_kwargs, get_config
 from app.schemas.modification_schemas import (
     ModificationIntent,
     IntentType,
@@ -60,34 +61,41 @@ class IntentParser:
         self,
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
-        model: str = "gpt-4",
-        temperature: float = 0.1
+        model: Optional[str] = None,
+        temperature: Optional[float] = None
     ):
         """
         初始化意图解析器
         
         Args:
-            api_key: OpenAI API密钥（如果不提供则从环境变量读取）
-            api_base: OpenAI API基础URL（可选,用于代理）
-            model: 模型名称（默认gpt-4）
-            temperature: 生成温度（默认0.1,保持一致性）
+            api_key: OpenAI API密钥（如果不提供则从配置文件或环境变量读取）
+            api_base: OpenAI API基础URL（如果不提供则从配置文件或环境变量读取）
+            model: 模型名称（如果不提供则从配置文件读取，默认gpt-4）
+            temperature: 生成温度（如果不提供则从配置文件读取，默认0.1）
         """
-        # 获取API配置
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self.api_base = api_base or os.getenv("OPENAI_API_BASE")
+        # 从配置获取LLM参数
+        llm_kwargs = get_llm_kwargs("intent_parser")
         
-        if not self.api_key:
-            raise ValueError("OpenAI API密钥未配置,请设置OPENAI_API_KEY环境变量或传入api_key参数")
+        # 允许通过参数覆盖配置
+        if api_key:
+            llm_kwargs["api_key"] = api_key
+        if api_base:
+            llm_kwargs["base_url"] = api_base
+        if model:
+            llm_kwargs["model"] = model
+        if temperature is not None:
+            llm_kwargs["temperature"] = temperature
+        
+        # 验证API密钥
+        if not llm_kwargs.get("api_key"):
+            raise ValueError(
+                "OpenAI API密钥未配置,请通过以下方式之一设置:\n"
+                "1. 环境变量 OPENAI_API_KEY\n"
+                "2. 配置文件 config/agent_config.yaml\n"
+                "3. 初始化参数 api_key"
+            )
         
         # 初始化LLM
-        llm_kwargs = {
-            "model": model,
-            "temperature": temperature,
-            "api_key": self.api_key
-        }
-        if self.api_base:
-            llm_kwargs["base_url"] = self.api_base
-        
         self.llm = ChatOpenAI(**llm_kwargs)
         
         # 初始化输出解析器
@@ -95,6 +103,12 @@ class IntentParser:
         
         # 构建提示词模板
         self.prompt_template = self._build_prompt_template()
+        
+        logger.info(
+            f"IntentParser初始化完成 - "
+            f"model: {llm_kwargs['model']}, "
+            f"temperature: {llm_kwargs['temperature']}"
+        )
     
     def _build_prompt_template(self) -> ChatPromptTemplate:
         """
@@ -103,9 +117,11 @@ class IntentParser:
         Returns:
             ChatPromptTemplate: 提示词模板
         """
-        system_prompt = """你是一个专业的报告修改意图解析助手。你的任务是理解用户的自然语言修改请求,并将其解析为结构化的意图列表。
+        system_prompt = """你是一个专业的报告修改意图解析助手。你的任务是理解用户的自然语言请求,并将其解析为结构化的意图列表。
 
 **支持的意图类型:**
+
+**【修改类意图】**
 
 1. **update_parameter** - 更新参数值
    - 用户想要修改某个输入参数的值
@@ -131,6 +147,31 @@ class IntentParser:
    - 用户想要删除某个章节
    - 例如: "删除附录部分", "去掉免责声明"
    - 需要识别: target_section(章节名)
+
+**【查询和通用类意图】**
+
+6. **query** - 查询报告信息
+   - 用户想要查看或获取报告的某些信息
+   - 例如: "输出当前报告内容", "显示所有参数", "列出所有章节", "当前报告有多少字"
+   - 需要识别: query_type(查询类型), query_details(查询详情)
+   - 常见查询类型:
+     * show_content: 显示报告内容
+     * list_variables: 列出所有变量
+     * show_parameters: 显示参数列表
+     * show_sections: 显示章节结构
+     * get_statistics: 获取统计信息（字数、章节数等）
+     * show_history: 显示修改历史
+
+7. **general_conversation** - 通用对话
+   - 用户进行一般性的交流，不涉及具体的修改或查询操作
+   - 例如: "你好", "谢谢", "这个报告怎么样", "有什么建议吗"
+   - 需要识别: conversation_context(对话上下文)
+   - 常见对话类型:
+     * greeting: 问候
+     * thanks: 感谢
+     * question: 咨询问题
+     * feedback: 反馈意见
+     * suggestion_request: 请求建议
 
 **解析规则:**
 

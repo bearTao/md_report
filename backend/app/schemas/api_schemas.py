@@ -341,3 +341,35 @@ class DeleteReportResponse(BaseModel):
     message: str
     deleted_items: Dict[str, int] = Field(..., description="各表删除的记录数")
 
+
+# Agent配置相关schemas
+class AgentLLMConfigItem(BaseModel):
+    """Agent组件的LLM配置项"""
+    component: str = Field(..., description="组件名称：intent_parser, explanation_generator, ai_refinement")
+    model: str = Field(..., description="模型名称")
+    api_key: Optional[str] = Field(None, description="API密钥")
+    api_base: Optional[str] = Field(None, description="API Base URL")
+    organization: Optional[str] = Field(None, description="组织ID")
+    temperature: float = Field(0.7, description="生成温度")
+    max_tokens: Optional[int] = Field(None, description="最大token数")
+    timeout: int = Field(60, description="超时时间（秒）")
+    enabled: bool = Field(True, description="是否启用")
+
+
+class AgentConfigResponse(BaseModel):
+    """Agent配置响应"""
+    configs: Dict[str, AgentLLMConfigItem] = Field(..., description="各组件的配置")
+    
+    
+class AgentConfigUpdate(BaseModel):
+    """Agent配置更新请求"""
+    component: str = Field(..., description="组件名称")
+    model: str = Field(..., description="模型名称")
+    api_key: Optional[str] = Field(None, description="API密钥")
+    api_base: Optional[str] = Field(None, description="API Base URL")
+    organization: Optional[str] = Field(None, description="组织ID")
+    temperature: float = Field(0.7, ge=0.0, le=2.0, description="生成温度")
+    max_tokens: Optional[int] = Field(None, description="最大token数")
+    timeout: int = Field(60, gt=0, description="超时时间（秒）")
+    enabled: bool = Field(True, description="是否启用")
+

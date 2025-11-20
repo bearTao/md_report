@@ -46,6 +46,10 @@ const Layout = () => {
           label: 'AI配置',
         },
         {
+          key: '/settings/agent',
+          label: 'Agent配置',
+        },
+        {
           key: '/settings/db',
           icon: <DatabaseOutlined />,
           label: '数据库连接',
