@@ -50,10 +50,21 @@ def extract_required_connections(metadata: Dict[str, VariableMetadata]) -> Set[s
     required_connections = set()
     
     for var_name, var_metadata in metadata.items():
+        # 兼容字典和对象两种形式
+        if isinstance(var_metadata, dict):
+            source = var_metadata.get('source')
+            sql_config = var_metadata.get('sql_config')
+        else:
+            source = var_metadata.source
+            sql_config = var_metadata.sql_config
+        
         # 只处理SQL类型的变量
-        if var_metadata.source == VariableSource.SQL:
-            if var_metadata.sql_config and var_metadata.sql_config.connection:
-                required_connections.add(var_metadata.sql_config.connection)
+        if source == VariableSource.SQL.value or source == VariableSource.SQL:
+            if sql_config:
+                # 兼容字典和对象两种形式
+                connection = sql_config.get('connection') if isinstance(sql_config, dict) else sql_config.connection
+                if connection:
+                    required_connections.add(connection)
     
     return required_connections
 

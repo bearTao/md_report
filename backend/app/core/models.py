@@ -118,7 +118,7 @@ class VariableMetadata(BaseModel):
     type: str  # string, number, boolean, array, object
     source: VariableSource
     required: bool = False
-    description: str
+    description: str = ""  # Optional: for documentation purposes only
     default: Optional[Any] = None
     dependencies: Optional[List[str]] = []
     schema: Optional[Dict[str, Any]] = None
